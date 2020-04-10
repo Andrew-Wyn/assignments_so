@@ -7,7 +7,7 @@
 # Per risolvere questo esercizio ho utilizzato i seguenti comandi:
 # - find
 # - grep
-# ho utilizzato il comando find dalla cartella home (espansa tramite carattere ~) e con i filtri -cmin 2  (file modificati massimo due minuti da ora) e -type f (solo file), poi per ogni 
+# ho utilizzato il comando find dalla cartella home (espansa tramite carattere ~) e con i filtri -cmin -2  (file modificati al massimo due minuti da ora) e -type f (solo file), poi per ogni 
 # file matchato applico il comando grep -l "cookies" che mette in stdout il nome del file se contiene la parola cercata
 
-find ~ -cmin 2 -type f -exec grep -l "cookies" {} \;
+find ~ -cmin -2 -type f -exec grep -l "cookies" {} \;

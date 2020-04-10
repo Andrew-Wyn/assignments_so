@@ -92,7 +92,7 @@ function process_file() {
     local i=0
     local values_ # variabile che utilizzero come array dove salvero i valori della riga, mi servira per calcolare la deviazione standard
 
-    while read row_; do # row_ contiene una riga del file passato come input alla funzione
+    while read row_ || [ -n "$row_" ]; do # row_ contiene una riga del file passato come input alla funzione, il secondo controllo viene effettuato per leggere anche l'ultima riga se il file non termina con \n
         # splitting della riga in due variabili tramite comando cut per utilizzarlo devo passare sullo stdout il contenuto della righa
         id_row=$(echo $row_ | cut -d" " -f1)
         value_row=$(echo $row_ | cut -d" " -f2)
@@ -114,8 +114,7 @@ function process_file() {
         fi
     done < $file_ # leggo riga per riga (fino a EOF) prendendo come stdin il file contenuto nella variabile $file (preso spunto dall'esempio nelle sue slide)
 
-    unset i
-    
+    unset i   
 
     # calcolo media -> somma/n_righe
     media=$(echo "scale=2; $somma/$numero_righe" | bc)
