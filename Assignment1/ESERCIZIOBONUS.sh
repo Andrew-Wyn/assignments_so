@@ -35,6 +35,7 @@
 # 3.46
 
 # variabili globali
+valori_totali=() # mantengo tutti i valori trovati in ogni file per calcolarmi poi le statistiche totali
 numero_righe_tot=0
 somma_tot=0
 media_tot=0
@@ -53,46 +54,15 @@ function process_file() {
     # !) tutte le operazioni vengono effettuate tramite il tool bc visto che bash non supporta i floating point e cio viene fatto tramite command expansion $()
     # !) le regex utilizzate, oltre che nel debugging dell'esercizio, sono state testate tramite il sito regex101
 
-    # METODO 1
-
-    # controllo se la prima riga contiene solamente valori numerici interi
-
-    # local id_rows=$(cut -d" " -f1 $file_)
-    # local values_=$(cut -d" " -f2 $file_) # non è un array ma l'espansione dell'output del comando cut
-    # local id_number_regex='^[0-9]*$' # regex che fa match solo con numeri interi per controllare gli indici nella prima colonna
-    # local regex_value='^[0-9]*([.][0-9]*)*$' # regex che fa match solo con valori 
-
-    # # controllo tutti gli elementi output del comando cut che rappresentano la prima colonna come stringa sliced
-    # for val_ in $id_rows; do 
-    #     if ! [[ $val_ =~ $id_number_regex ]]; then
-    #         echo -e "ERRORE: valore non numerico intero positivo presente nella prima colonna -> ($val_)"
-    #         exit 1
-    #     fi
-    # done
-
-    # # passo al calcolo delle statistiche tramite i valori presenti nella seconda colonna
-
-    # # calcolo somma totale
-    # for val_ in $values_; do # lo tratto come un insieme di valori sui quali posso iterare, ovvero una stringa che viene scissa seguendo i delimitatori nella variabile IFS
-    #     if [[ $val_ =~ $regex_value ]]; then # =~ effettua un match tra la stringa a sinistra e una regex sulla sinistra, torna 0 se il match avviene necessario doppio [] per tornare valore booleano
-    #         somma=$(echo "scale=2; $somma+$val_" | bc -q) 
-    #         ((numero_righe ++)) # devo calcolarmi il numero di righe iterativamente visto che non posso interrogare la lunghezza dell'output di cut come se fosse un array
-    #     else
-    #         echo -e "ERRORE: è presente un valore non numerico nella seconda colonna -> ($val_)"
-    #         exit 1
-    #     fi
-    # done
-
     # METODO 2
 
     local id_row
     local value_row
-    local regex_number='^[0-9]*([.][0-9]*)*$' # regex che fa match solo con valori
+    local regex_number='^(^[0-9]+[.][0-9]*$)|(^[0-9]*[.][0-9]+$)' # regex che fa match solo con valori
     local id_value_regex='^[0-9]*$' # regex che fa match solo con numeri interi per controllare gli indici nella prima colonna
-    local i=0
-    local values_ # variabile che utilizzero come array dove salvero i valori della riga, mi servira per calcolare la deviazione standard
+    local values_=() # variabile che utilizzero come array dove salvero i valori della riga, mi servira per calcolare la deviazione standard
 
-    while read row_ || [ -n "$row_" ]; do # row_ contiene una riga del file passato come input alla funzione, il secondo controllo viene effettuato per leggere anche l'ultima riga se il file non termina con \n
+    while read row_ || [[ -n "$row_" ]]; do # row_ contiene una riga del file passato come input alla funzione, il secondo controllo viene effettuato per leggere anche l'ultima riga se il file non termina con \n
         # splitting della riga in due variabili tramite comando cut per utilizzarlo devo passare sullo stdout il contenuto della righa
         id_row=$(echo $row_ | cut -d" " -f1)
         value_row=$(echo $row_ | cut -d" " -f2)
@@ -104,43 +74,38 @@ function process_file() {
 
         if [[ $value_row =~ $regex_number ]]; then # =~ effettua un match tra la stringa a sinistra e una regex sulla sinistra, torna 0 se il match avviene necessario doppio [] per tornare valore booleano
             somma=$(echo "scale=2; $somma+$value_row" | bc -q)
-            values_[$i]=$value_row
+            values_[$numero_righe]=$value_row
+            valori_totali[$numero_righe_tot]=$value_row
 
-            ((i ++))
             ((numero_righe ++)) # calcolo la lunghezza delle righe aumentando un contatore
+            ((numero_righe_tot ++)) # calcolo il numero delle righe totati progressivamente
         else
             echo -e "ERRORE: è presente un valore non numerico nella seconda colonna -> ($value_row)"
             exit 1
         fi
     done < $file_ # leggo riga per riga (fino a EOF) prendendo come stdin il file contenuto nella variabile $file (preso spunto dall'esempio nelle sue slide)
 
-    unset i   
-
     # calcolo media -> somma/n_righe
-    media=$(echo "scale=2; $somma/$numero_righe" | bc)
+    media=$(echo "scale=2; $somma/$numero_righe" | bc -q)
 
     # solo dopo aver calcolato la media per definizione posso calcolare la dev standard
     for val_ in ${values_[@]}; do
         deviazione_standard=$(echo "scale=2; $deviazione_standard+($val_-$media)^2" | bc -q)
     done
-
     deviazione_standard=$(echo "scale=2; sqrt($deviazione_standard/($numero_righe-1))" | bc -q)
 
     # stampo valori richiesti
     # echo -e "$(basename -s .csv $file_), $numero_righe, $somma, $media, $deviazione_standard" # elimino il suffisso dal file se ha estensione .csv
     echo -e "$(echo $file_ | cut -d "." -f1), $numero_righe, $somma, $media, $deviazione_standard" # taglio rispetto al punto e prendo la substring iniziale, meno performante ma adatto per gestire tutte le estenzioni
 
-    # aggiorno valori globali sommandovi quelli locali
-    numero_righe_tot=$(echo "scale=2; $numero_righe_tot+$numero_righe" | bc -q)
+    # mi calcolo la somma totale di tutti i valori presenti in tutti i file per il calcolo finale
     somma_tot=$(echo "scale=2; $somma_tot+$somma" | bc -q)
-    media_tot=$(echo "scale=2; $media_tot+$media" | bc -q)
-    deviazione_standard_tot=$(echo "scale=2; $deviazione_standard_tot+$deviazione_standard" | bc -q)
 }
 
-if [ $# -ge 1 ]; then
+if [[ $# -ge 1 ]]; then
 
     for par_ in $@; do
-        if [ -f $par_ ]; then
+        if [[ -f $par_ ]]; then
             process_file $par_
         else
             echo -e "ERRORE: Inserire Solo file"
@@ -148,11 +113,18 @@ if [ $# -ge 1 ]; then
         fi 
     done
 
-    # # per ogni file preso in input processo i suoi vaolire e li stampo un output, tengo anch delle variabili globali da aggiornare ad ogni iterazione (file passato)
-    # # le quali verranno stampate alla fine
-    # for file_ in ${files_[@]}; do
-    #     process_file $file_
-    # done 
+    # calcolo valori totali vedo tutti i valori come se appartenessero ad un unico file
+    # calcolo media_tot -> somma/n_righe
+    media_tot=$(echo "scale=2; $somma_tot/$numero_righe_tot" | bc -q)
+
+    echo ${valori_totali[@]}
+
+    # solo dopo aver calcolato la media per definizione posso calcolare la dev standard
+    for val_ in ${valori_totali[@]}; do
+        deviazione_standard_tot=$(echo "scale=2; $deviazione_standard_tot+($val_-$media_tot)^2" | bc -q)
+    done
+
+    deviazione_standard_tot=$(echo "scale=2; sqrt($deviazione_standard_tot/($numero_righe_tot-1))" | bc -q)
 
     echo -e "TOT, $numero_righe_tot, $somma_tot, $media_tot, $deviazione_standard_tot"
 

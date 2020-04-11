@@ -22,12 +22,12 @@ function delete_both() {
     local risp_
     read risp_
 
-    if [ $risp_ == "S" ] || [ $risp_ == "s" ]; then
+    if [[ $risp_ == "S" ]] || [[ $risp_ == "s" ]]; then
 
         rm $file1_ $file2_ # rimuovo il file1 e il file 2
         # controllo il successo dell'operazione
         rm_exit_status=$? # get exit status del comando precedente
-        if [ $rm_exit_status -eq 0 ]; then
+        if [[ $rm_exit_status -eq 0 ]]; then
             echo -e "File Eliminati ..."
         else
             echo -e "ERRORE: durante l'eliminazione dei file -> cod err(${rm_exit_status})"
@@ -51,10 +51,13 @@ function archive_both() {
     tar -czf  $nome_archivio $file1_ $file2_ # creo archivio con il comando tar ed le opzioni, -c create, -z compress con gzip, -f nome dell'archivio
     # controllo il successo dell'operazione
     tar_exit_status=$? # get exit status del comando precedentes
-    if [ $tar_exit_status -eq 0 ]; then
+    if [[ $tar_exit_status -eq 0 ]]; then
         echo -e "Archivio creato correttamente, il contenuto è il seguente:"
         tar -ztf $nome_archivio # visualizzo il contenuto dell'archivio senza decomprimerlo, con l'opzione -t
     else
+        if [[ -e $nome_archivio ]] && [[ -z $(tar -ztf $nome_archivio) ]];then # operazione eseguita per evitare di trovare archivio vuoto creato ma non riempito causa errore del comando tar
+            rm $nome_archivio 
+        fi
         echo -e "ERRORE: durante la creazione dell'archivio -> cod err(${tar_exit_status})"
         exit 1
     fi 
@@ -70,7 +73,7 @@ function append_1_2() {
     cat $file1_ >> $file2_
     # controllo il successo dell'operazione
     append_exit_status=$? # get exit status del comando precedente
-    if [ $tar_exit_status -eq 0 ]; then
+    if [[ $tar_exit_status -eq 0 ]]; then
         echo -e "Append avvenuto correttamente"
     else
         echo -e "ERRORE: durante l'effettuazione dell'append -> cod err(${tar_exit_status})"
@@ -79,12 +82,12 @@ function append_1_2() {
 
 }
 
-if [ $# -eq 2 ]; then # controlo che i file inseriti siano esattamete 2
+if [[ $# -eq 2 ]]; then # controlo che i file inseriti siano esattamete 2
 
     file1_=$1
     file2_=$2
 
-    if ! [ -f $file1_ ] || ! [ -f $file2_ ]; then 
+    if ! [[ -f $file1_ ]] || ! [[ -f $file2_ ]]; then 
         echo -e "ERRORE: Inserire solo file"
         exit 1
     fi

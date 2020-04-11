@@ -9,7 +9,7 @@
 
 # SUGGERIMENTO: creare un array contenente tutti gli argomenti passati allo script.
 
-if [ $# -ge 2 ]; then
+if [[ $# -ge 2 ]]; then
 
     # inserisco i nomi dei file in dall'ultimo al primo di inserimento in un array
     # Array creation
@@ -17,7 +17,7 @@ if [ $# -ge 2 ]; then
     
     for par_ in $@; do
 
-        if [ -f $par_ ]; then # controllo che i file inseriti siano effettivamente file
+        if [[ -f $par_ ]]; then # controllo che i file inseriti siano effettivamente file
             files_[$i]=$par_
             ((i--))
         else 
@@ -35,7 +35,7 @@ if [ $# -ge 2 ]; then
 
         # controllo se l'esecuzione degli apppend avviene senza errori
         append_exit_status=$?
-        if ! [ $append_exit_status -eq 0 ]; then # controllo se l'exit status è diverso da 0
+        if ! [[ $append_exit_status -eq 0 ]]; then # controllo se l'exit status è diverso da 0
             echo -e "ERRORE: errore nell appending dei file -> error code (${append_exit_status})"
             exit 1
         fi
