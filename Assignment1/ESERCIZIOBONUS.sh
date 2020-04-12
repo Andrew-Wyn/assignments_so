@@ -81,7 +81,7 @@ function process_file() {
             echo -e "ERRORE: è presente un valore non numerico nella seconda colonna -> ($value_row)"
             exit 1
         fi
-    done < $file_ # leggo riga per riga (fino a EOF) prendendo come stdin il file contenuto nella variabile $file (preso spunto dall'esempio nelle sue slide)
+    done < "$file_" # leggo riga per riga (fino a EOF) prendendo come stdin il file contenuto nella variabile $file (preso spunto dall'esempio nelle sue slide)
 
     # MEDIA
     # calcolo media -> somma/n_righe
@@ -106,7 +106,7 @@ if [[ $# -ge 1 ]]; then
 
     for par_ in "$@"; do
         if [[ -f $par_ ]]; then
-            process_file $par_
+            process_file "$par_" # uso il quoting per evitare errori con nomi dei file che contengono spazi
         else
             echo -e "ERRORE: Inserire Solo file"
             exit 1

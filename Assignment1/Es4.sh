@@ -31,7 +31,7 @@ if [[ $# -ge 2 ]]; then
     # scorro l'array dal penultimo inserito al primo in ordine decrescente
     for file_ in "${files_[@]:1 }"; do
         echo -e "appendo il file ${file_} al file ${files_[0]} ..."
-        cat $file_ >> ${files_[0]} # appendo il file che sto leggendo al file 0 nell'array ovvero l'ultimo letto
+        cat "$file_" >> "${files_[0]}" # appendo il file che sto leggendo al file 0 nell'array ovvero l'ultimo letto
 
         # controllo se l'esecuzione degli apppend avviene senza errori
         append_exit_status=$?
