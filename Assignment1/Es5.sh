@@ -28,7 +28,7 @@ function delete_both() {
         # controllo il successo dell'operazione
         rm_exit_status=$? # get exit status del comando precedente
         if [[ $rm_exit_status -eq 0 ]]; then
-            echo -e "File Eliminati ..."
+            echo -e "File Eliminati!!"
         else
             echo -e "ERRORE: durante l'eliminazione dei file -> cod err(${rm_exit_status})"
             exit 1
@@ -74,7 +74,7 @@ function append_1_2() {
     # controllo il successo dell'operazione
     append_exit_status=$? # get exit status del comando precedente
     if [[ $tar_exit_status -eq 0 ]]; then
-        echo -e "Append avvenuto correttamente"
+        echo -e "Append avvenuto correttamente!!"
     else
         echo -e "ERRORE: durante l'effettuazione dell'append -> cod err(${tar_exit_status})"
         exit 1

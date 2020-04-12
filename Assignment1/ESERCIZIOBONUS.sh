@@ -54,11 +54,9 @@ function process_file() {
     # !) tutte le operazioni vengono effettuate tramite il tool bc visto che bash non supporta i floating point e cio viene fatto tramite command expansion $()
     # !) le regex utilizzate, oltre che nel debugging dell'esercizio, sono state testate tramite il sito regex101
 
-    # METODO 2
-
     local id_row
     local value_row
-    local regex_number='^(^[0-9]+[.][0-9]*$)|(^[0-9]*[.][0-9]+$)' # regex che fa match solo con valori
+    local regex_number='(^[0-9]+$)|(^[0-9]+[.][0-9]*$)|(^[0-9]*[.][0-9]+$)' # regex che fa match solo con valori
     local id_value_regex='^[0-9]*$' # regex che fa match solo con numeri interi per controllare gli indici nella prima colonna
     local values_=() # variabile che utilizzero come array dove salvero i valori della riga, mi servira per calcolare la deviazione standard
 
@@ -85,26 +83,28 @@ function process_file() {
         fi
     done < $file_ # leggo riga per riga (fino a EOF) prendendo come stdin il file contenuto nella variabile $file (preso spunto dall'esempio nelle sue slide)
 
+    # MEDIA
     # calcolo media -> somma/n_righe
     media=$(echo "scale=2; $somma/$numero_righe" | bc -q)
 
+    # DEVIAZIONE STANDARD
     # solo dopo aver calcolato la media per definizione posso calcolare la dev standard
-    for val_ in ${values_[@]}; do
+    for val_ in "${values_[@]}"; do
         deviazione_standard=$(echo "scale=2; $deviazione_standard+($val_-$media)^2" | bc -q)
     done
     deviazione_standard=$(echo "scale=2; sqrt($deviazione_standard/($numero_righe-1))" | bc -q)
 
-    # stampo valori richiesti
-    # echo -e "$(basename -s .csv $file_), $numero_righe, $somma, $media, $deviazione_standard" # elimino il suffisso dal file se ha estensione .csv
-    echo -e "$(echo $file_ | cut -d "." -f1), $numero_righe, $somma, $media, $deviazione_standard" # taglio rispetto al punto e prendo la substring iniziale, meno performante ma adatto per gestire tutte le estenzioni
-
     # mi calcolo la somma totale di tutti i valori presenti in tutti i file per il calcolo finale
     somma_tot=$(echo "scale=2; $somma_tot+$somma" | bc -q)
+
+    # STAMPO VALORI PER OGNI FILE 
+    # echo -e "$(basename -s .csv $file_), $numero_righe, $somma, $media, $deviazione_standard" # elimino il suffisso dal file se ha estensione .csv
+    echo -e "$(echo $file_ | cut -d "." -f1), $numero_righe, $somma, $media, $deviazione_standard" # taglio rispetto al punto e prendo la substring iniziale, meno performante ma adatto per gestire tutte le estenzioni
 }
 
 if [[ $# -ge 1 ]]; then
 
-    for par_ in $@; do
+    for par_ in "$@"; do
         if [[ -f $par_ ]]; then
             process_file $par_
         else
@@ -114,18 +114,20 @@ if [[ $# -ge 1 ]]; then
     done
 
     # calcolo valori totali vedo tutti i valori come se appartenessero ad un unico file
+
+    # MEDIA
     # calcolo media_tot -> somma/n_righe
     media_tot=$(echo "scale=2; $somma_tot/$numero_righe_tot" | bc -q)
 
-    echo ${valori_totali[@]}
-
+    #DEVIAZIONE STANDARD
     # solo dopo aver calcolato la media per definizione posso calcolare la dev standard
-    for val_ in ${valori_totali[@]}; do
+    for val_ in "${valori_totali[@]}"; do
         deviazione_standard_tot=$(echo "scale=2; $deviazione_standard_tot+($val_-$media_tot)^2" | bc -q)
     done
 
     deviazione_standard_tot=$(echo "scale=2; sqrt($deviazione_standard_tot/($numero_righe_tot-1))" | bc -q)
 
+    # STAMPO I RISULTATI FINALI
     echo -e "TOT, $numero_righe_tot, $somma_tot, $media_tot, $deviazione_standard_tot"
 
 else

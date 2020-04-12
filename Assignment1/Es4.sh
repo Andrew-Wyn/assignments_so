@@ -15,8 +15,8 @@ if [[ $# -ge 2 ]]; then
     # Array creation
     i=$(( $# - 1 )) # variabile indice per scorrere l'array in senso decrescente
     
-    for par_ in $@; do
-
+    for par_ in "$@"; do # necessario mettere il quoting senno nomi passati come stringa unica ex "nome file1" viene splittato casistica particolare ma possibile
+        
         if [[ -f $par_ ]]; then # controllo che i file inseriti siano effettivamente file
             files_[$i]=$par_
             ((i--))
@@ -29,7 +29,7 @@ if [[ $# -ge 2 ]]; then
     unset i # rimuovo la variabile i che non mi serve piu
 
     # scorro l'array dal penultimo inserito al primo in ordine decrescente
-    for file_ in ${files_[@]:1 }; do
+    for file_ in "${files_[@]:1 }"; do
         echo -e "appendo il file ${file_} al file ${files_[0]} ..."
         cat $file_ >> ${files_[0]} # appendo il file che sto leggendo al file 0 nell'array ovvero l'ultimo letto
 

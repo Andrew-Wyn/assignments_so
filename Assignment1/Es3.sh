@@ -40,6 +40,7 @@ function crea_archivio() {
         echo -e "Archivio creato correttamente, il contenuto è il seguente:"
         tar -ztf $nome_archivio # visualizzo il contenuto dell'archivio senza decomprimerlo, con l'opzione -t
     else
+        # se acceto di sovrascrivere e viene creato causa errore un archivio vuoto comunque verra sovrascritto vuoto e di conseguenza eliminato
         if [[ -e $nome_archivio ]] && [[ -z $(tar -ztf $nome_archivio) ]];then # operazione eseguita per evitare di trovare archivio vuoto creato ma non riempito causa errore del comando tar
             rm $nome_archivio 
         fi
