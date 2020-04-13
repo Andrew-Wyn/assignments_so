@@ -43,7 +43,7 @@ deviazione_standard_tot=0
 
 function process_file() {
     # parametri
-    local file_=$1
+    local file_="$1"
 
     # variabili di funzione
     local numero_righe=0
@@ -108,7 +108,7 @@ if [[ $# -ge 1 ]]; then
         if [[ -f $par_ ]]; then
             process_file "$par_" # uso il quoting per evitare errori con nomi dei file che contengono spazi
         else
-            echo -e "ERRORE: Inserire Solo file"
+            echo -e "ERRORE: Inserire Solo file, '${par_}' non è un file"
             exit 1
         fi 
     done

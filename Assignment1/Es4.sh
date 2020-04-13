@@ -18,10 +18,10 @@ if [[ $# -ge 2 ]]; then
     for par_ in "$@"; do # necessario mettere il quoting senno nomi passati come stringa unica ex "nome file1" viene splittato casistica particolare ma possibile
         
         if [[ -f $par_ ]]; then # controllo che i file inseriti siano effettivamente file
-            files_[$i]=$par_
+            files_[$i]="$par_"
             ((i--))
         else 
-            echo -e "ERRORE: inserire solamente file, ${par_} non è un file"
+            echo -e "ERRORE: inserire solamente file, '${par_}' non è un file"
             exit 1
         fi
     done

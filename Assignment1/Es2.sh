@@ -11,3 +11,5 @@
 # file matchato applico il comando grep -l "cookies" che mette in stdout il nome del file se contiene la parola cercata
 
 find ~ -mmin -2 -type f -exec grep -l "cookies" \{\} \;
+
+# !) nella mia macchina è necessario eseguire il comando con permessi di amministratore per avere accesso ad alcune cartelle 

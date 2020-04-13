@@ -55,9 +55,9 @@ if [[ $# -eq 1 ]]; then # controllo che il numero dei parametri (escluso il para
     # utilizzo i path relativi per i file
     file_path="$1"
 
-    if [[ -d $file_path ]]; then
+    if [[ -d "$file_path" ]]; then
 
-        nome_archivio="${file_path}".tar.gz
+        nome_archivio=$(basename "${file_path}").tar.gz # basename toglie il suffisso lasciando solo il nome della cartella ed eventuali '/' alla fine del nome
         echo $nome_archivio
 
         if [[ -f $nome_archivio ]]; then # controllo che il path relativo dell'archivio esista e sia un file
@@ -66,7 +66,7 @@ if [[ $# -eq 1 ]]; then # controllo che il numero dei parametri (escluso il para
             echo -e "Archivio Esistente, Vuoi sovrascriverlo?[S/n]"
             read risp_ # leggo una linea dal buffer stdin
 
-            if [[ $risp_ == "S" ]] || [[ $risp_ == "s" ]]; then 
+            if [[ "$risp_" == "S" ]] || [[ "$risp_" == "s" ]]; then 
                 crea_archivio "$nome_archivio" "$file_path"
             else
                 echo -e "Hai detto di no"

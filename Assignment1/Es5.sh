@@ -22,7 +22,7 @@ function delete_both() {
     local risp_
     read risp_
 
-    if [[ $risp_ == "S" ]] || [[ $risp_ == "s" ]]; then
+    if [[ "$risp_" == "S" ]] || [[ "$risp_" == "s" ]]; then
 
         rm "$file1_" "$file2_" # rimuovo il file1 e il file 2
         # controllo il successo dell'operazione
@@ -98,9 +98,7 @@ if [[ $# -eq 2 ]]; then # controlo che i file inseriti siano esattamete 2
         echo -e "- 1. rimuovere entrambi i file\n- 2. archiviare entrambi i file\n- 3. appendere il file f1 al file f2\n- 4. esci" 
         read risp_ # leggo una linea dal buffer stdin
 
-        echo $risp_ 
-
-        case $risp_ in 
+        case "$risp_" in 
             1)
                 delete_both "$file1_" "$file2_" # preferisco passare il valore dei nomi dei file come parametri per una migliore lettura del codice
                 ;;
