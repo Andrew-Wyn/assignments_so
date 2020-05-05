@@ -3,3 +3,5 @@
 
 #exept
 !*.sh
+!*c
+!Makefile
