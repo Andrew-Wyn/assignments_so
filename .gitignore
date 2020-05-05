@@ -3,5 +3,5 @@
 
 #exept
 !*.sh
-!*c
-!Makefile
+!*/Assignment2/*
+#!Makefile
