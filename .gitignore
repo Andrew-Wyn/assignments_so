@@ -1,7 +1,10 @@
 # ignore evethings
 *
 
+
 #exept
+!*/
 !*.sh
-!*/Assignment2/*
+!*.c
+
 #!Makefile
