@@ -45,6 +45,8 @@
 // 5.1) Il makefile deve contenere anche il target "clean"
 */
 
+// TEST
+
 #include "utilities.h"
 
 buffer_condiviso* buffer;
@@ -56,7 +58,7 @@ void* fn_cabina(void* args) {
     int fermata_attuale = 0; 
 
     while (1) {
-        printf("CABINA: APETTO CHE TUTTI SIANO IN ATTESA\n");
+        printf("CABINA: ASPETTO CHE TUTTI SIANO IN ATTESA\n");
         Pthread_mutex_lock(&buffer->mtx);
         Pthread_cond_wait(&buffer->cond_waitfull, &buffer->mtx);
         
@@ -105,13 +107,15 @@ void* fn_sobri(void* _biglietto) {
     while (1) {
         Pthread_mutex_lock(&buffer->mtx);
         buffer->waitlen++;
-        if(buffer->waitlen == 7) // capire perche va in deadlock quando non aspetto esattamente tutti i passeggeri
+        if(buffer->waitlen >= 4) // !!! // capire perche va in deadlock quando non aspetto esattamente tutti i passeggeri
             Pthread_cond_signal(&buffer->cond_waitfull);
         if (biglietto_->fermata_ == 0) {
             printf("SOBRIO: %d -> aspetto alla stazione\n", biglietto_->id);
+            buffer->sobri_stazione++; // !!!
             Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
             num_sobri = buffer->sobri_stazione;
         } else if (biglietto_->fermata_ == 1) {
+            buffer->sobri_cc++; // !!!
             printf("SOBRIO: %d -> aspetto al centro storico\n", biglietto_->id);
             Pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
             num_sobri = buffer->sobri_cc;
@@ -147,12 +151,12 @@ void* fn_sobri(void* _biglietto) {
             }
             // diminuire il contatore dei sobri;
             if (biglietto_->fermata_) {
-                buffer->sobri_stazione++;
+                //buffer->sobri_stazione++;
                 buffer->sobri_cc--;
                 biglietto_->fermata_ = 0;
             } else {
                 buffer->sobri_stazione--;
-                buffer->sobri_cc++;
+                //buffer->sobri_cc++;
                 biglietto_->fermata_ = 1;
             }
 
@@ -185,7 +189,7 @@ void* fn_ubriachi(void* _biglietto) {
     while (1) {
         pthread_mutex_lock(&buffer->mtx);
         buffer->waitlen++;
-        if(buffer->waitlen == 7)
+        if(buffer->waitlen >= 0) // !!!
             pthread_cond_signal(&buffer->cond_waitfull);
         if (biglietto_->fermata_ == 0) {
             printf("UBRIACO: %d -> aspetto alla stazione\n", biglietto_->id);
@@ -220,9 +224,9 @@ void* fn_ubriachi(void* _biglietto) {
             sleep(3);
         } else {
             if (biglietto_->fermata_ == 0) {
-                pthread_cond_signal(&buffer->cond_staz);
+                Pthread_cond_signal(&buffer->cond_staz);
             } else if (biglietto_->fermata_ == 1) {
-                pthread_cond_signal(&buffer->cond_cc);
+                Pthread_cond_signal(&buffer->cond_cc);
             } else {
                 // errore
             }
