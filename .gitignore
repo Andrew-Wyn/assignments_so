@@ -7,5 +7,4 @@
 !*.sh
 !*.c
 !*.h
-
-#!Makefile
+!Makefile
