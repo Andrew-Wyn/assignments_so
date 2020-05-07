@@ -65,7 +65,7 @@ void* fn_cabina(void* args) {
         // se metto and si schianta
         if (((buffer->ubriachi_stazione==0 && buffer->sobri_stazione < 4) && buffer->fermata_attuale == 0) || ((buffer->ubriachi_cc==0 && buffer->sobri_cc < 4) && buffer->fermata_attuale == 1))
             {
-              printf("CABINA: ASPETTO CHE TUTTI SIANO IN ATTESA\n");
+              printf("------------------------CABINA: ASPETTO CHE TUTTI SIANO IN ATTESA\n");
               fflush(stdout);
               Pthread_cond_wait(&buffer->cond_waitfull, &buffer->mtx);
             }
