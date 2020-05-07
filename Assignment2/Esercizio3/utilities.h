@@ -34,14 +34,16 @@ typedef struct
     int ubriachi; /* 0 o 1 */
     int num_passengers;
 
-    int ids[4];
+    int fermata_attuale;
 
-    // numero passeggeri che sono in attesa
-    int waitlen;
+    int ids[4];
 
     // necessario senno posso ritrovarmi in una situazione di stallo
     int sobri_cc;
     int sobri_stazione;
+
+    int ubriachi_cc;
+    int ubriachi_stazione;
 
 } buffer_condiviso;
 

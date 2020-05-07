@@ -33,6 +33,11 @@ int fib(int N) {
 
     PID = fork();
 
+    if (N==2) {
+        fprintf(stderr, "[ERRORE]: errore nella fork processo: %d\n", getpid());
+        exit(-1);
+    }
+
     if (PID > 0) { // padre
         int status;
         if (waitpid(PID, &status, 0) != -1) {
@@ -45,7 +50,7 @@ int fib(int N) {
     } else if (PID == 0) { // figlio
         exit(fib(N-2));
     } else {
-        fprintf(stderr, "[ERRORE]: errore nella fork\n");
+        fprintf(stderr, "[ERRORE]: errore nella fork processo: %d\n", getpid());
         exit(-1);
     }
     return -1;

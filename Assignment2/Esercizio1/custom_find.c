@@ -28,6 +28,8 @@
 
 #define MAXBUFF 128
 
+// aggiungere wrapping functions per le systemcalls 
+
 int checkExt(char* fileName, const char* extStr) {
     int lenFileName = strlen(fileName);
     int lenExtStr = strlen(extStr);
@@ -128,7 +130,6 @@ int main(int argc, char *argv[]) {
         strcpy(nomeDir, "./");
     } else {
         strcpy(nomeDir, argv[2]);
-        // controllo se è una cartella
     }
 
     recursiveSearchDir(nomeDir, argv[1]);

@@ -141,8 +141,9 @@ void Pthread_condattr_setpshared(pthread_condattr_t* condattr, int _pshared) {
 int Shm_open(const char *__name, int __oflag, mode_t __mode) {
     int shmfd = shm_open(__name, __oflag, __mode);
     if (shmfd < 0) {
+        int var_errno=errno;
         perror("shm_open");
-        exit(EXIT_FAILURE);
+        exit(var_errno);
     }
     return shmfd;
 }
