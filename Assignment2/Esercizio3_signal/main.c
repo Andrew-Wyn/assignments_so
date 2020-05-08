@@ -65,7 +65,7 @@ void* fn_cabina(void* args) {
         // se metto and si schianta
         if (((buffer->ubriachi_stazione==0 && buffer->sobri_stazione < 4) && buffer->fermata_attuale == 0) || ((buffer->ubriachi_cc==0 && buffer->sobri_cc < 4) && buffer->fermata_attuale == 1))
             {
-              printf("------------------------CABINA: ASPETTO CHE TUTTI SIANO IN ATTESA\n");
+              printf("CABINA: ASPETTO CHE TUTTI SIANO IN ATTESA\n");
               fflush(stdout);
               Pthread_cond_wait(&buffer->cond_waitfull, &buffer->mtx);
             }
@@ -118,15 +118,14 @@ void* fn_sobri(void* _biglietto) {
         //     Pthread_cond_signal(&buffer->cond_waitfull);
         if (biglietto_->fermata_ == 0) {
             buffer->sobri_stazione++; // !!!
-            if(buffer->sobri_stazione >= 4 && buffer->fermata_attuale==0) // !!! // capire perche va in deadlock quando non aspetto esattamente tutti i passeggeri
+            if(buffer->sobri_stazione >= 4 && buffer->fermata_attuale==0) 
                 Pthread_cond_signal(&buffer->cond_waitfull);
             printf("SOBRIO: %d -> aspetto alla stazione, con altri %d\n", biglietto_->id, buffer->sobri_stazione);
             Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
             num_sobri = buffer->sobri_stazione;
         } else if (biglietto_->fermata_ == 1) {
             buffer->sobri_cc++; // !!!
-            // segnalo se la metro è in attesa nella fermata attuale !!!!!!!!!
-            if(buffer->sobri_cc >= 4 && buffer->fermata_attuale==1) // !!! // capire perche va in deadlock quando non aspetto esattamente tutti i passeggeri
+            if(buffer->sobri_cc >= 4 && buffer->fermata_attuale==1) 
                 Pthread_cond_signal(&buffer->cond_waitfull);
             printf("SOBRIO: %d -> aspetto al centro storico, con altri %d\n", biglietto_->id, buffer->sobri_cc);
             Pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
@@ -162,12 +161,10 @@ void* fn_sobri(void* _biglietto) {
             }
             // diminuire il contatore dei sobri;
             if (biglietto_->fermata_) {
-                //buffer->sobri_stazione++;
                 buffer->sobri_cc--;
                 biglietto_->fermata_ = 0;
             } else {
                 buffer->sobri_stazione--;
-                //buffer->sobri_cc++;
                 biglietto_->fermata_ = 1;
             }
 
