@@ -52,10 +52,10 @@ typedef struct
 
 
 // capire perche il buffer fa le bizze e aggiustare controllo sui sobri e gli ubriachi
-buffer_condiviso* buffer;
+//buffer_condiviso* buffer;
 
 // funzioni
-void print_passengers();
+void print_passengers(buffer_condiviso* buffer);
 void Pthread_mutex_lock(pthread_mutex_t* mtx);
 void Pthread_mutex_unlock(pthread_mutex_t* mtx);
 void Pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mtx);

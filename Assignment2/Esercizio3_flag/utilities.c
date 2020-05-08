@@ -1,12 +1,12 @@
 
 #include "utilities.h"
 
-void print_passengers() {
+void print_passengers(buffer_condiviso* buffer) {
     printf("composizione cabina: %d passegeri\n", buffer->num_passengers);
     if (buffer->num_passengers == 1) {
         printf("passeggero: %d, UBRIACO\n", buffer->ids[0]);
     } else {
-        for(int i=0; i<4; i++) 
+        for(int i=0; i<2; i++) 
             printf("passeggero: %d, SOBRIO\n", buffer->ids[i]);
     }
     fflush(stdout);
