@@ -54,55 +54,68 @@
 buffer_condiviso* buffer;
 
 void* fn_cabina(void* args) {
-    printf("cabina\n");
 
-    // 0: stazione, 1: centro storico
-    buffer->fermata_attuale = 0; 
-
+    buffer->fermata_attuale = STAZIONE; 
+    // sleep(3); // se aggiungo posso eliminare anche la wait iniziale della cabina
     while (1) {
     
         Pthread_mutex_lock(&buffer->mtx);
-        // se metto and si schianta
-        if (((buffer->ubriachi_stazione==0 && buffer->sobri_stazione < 4) && buffer->fermata_attuale == 0) || ((buffer->ubriachi_cc==0 && buffer->sobri_cc < 4) && buffer->fermata_attuale == 1))
-            {
-              printf("CABINA: ASPETTO CHE TUTTI SIANO IN ATTESA\n");
-              fflush(stdout);
-              Pthread_cond_wait(&buffer->cond_waitfull, &buffer->mtx);
-            }
         
-        printf("CABINA: TUTTI IN ATTESA\n");
-
-        if (buffer->fermata_attuale == 0) {
-            printf("CABINA: SEGNALO STAZIONE\n");
-            Pthread_cond_signal(&buffer->cond_staz);
-        } else if (buffer->fermata_attuale == 1) {
-            printf("CABINA: SEGNALO CENTRO STORICO\n");
-            Pthread_cond_signal(&buffer->cond_cc);
-        } else {
-            // errore
+        // controllo necessario solo per la prima iterazione con la configurazione data
+        if (
+                ((buffer->ubriachi_stazione == 0 && buffer->sobri_stazione < 2)
+                    && buffer->fermata_attuale == STAZIONE) 
+                || ((buffer->ubriachi_cc==0 && buffer->sobri_cc < 2) 
+                    && buffer->fermata_attuale == CENTRO_STORICO)
+            ) {
+            printf("[CABINA]: aspetto che un numero sufficiente di persone siano in attesa\n");
+            Pthread_cond_wait(&buffer->cond_waitfull, &buffer->mtx);
+            printf("CABINA: tutti in attesa\n");
         }
-        printf("CABINA: ASPETTO CHE SI RIEMPIA\n");
+
+        if (buffer->fermata_attuale == STAZIONE) {
+            printf("[CABINA]: avviso \n");
+            printf("[CABINA]: partenza dalla stazione\n");
+            Pthread_cond_signal(&buffer->cond_staz);
+        } else if (buffer->fermata_attuale == CENTRO_STORICO) {
+            printf("[CABINA]: partenza dal centro storico\n");
+            Pthread_cond_signal(&buffer->cond_cc);
+        }
+
+        printf("[CABINA]: aspetto che salgano tutti\n");
         Pthread_cond_wait(&buffer->cond_piena, &buffer->mtx);
+
+        printf("[CABINA]: partita\n");
 
         print_passengers(buffer);
 
         // tempo necessario per il viaggio
         sleep(2);
 
-        if (buffer->fermata_attuale) {
-            buffer->fermata_attuale = 0;
-        } else {
-            buffer->fermata_attuale = 1;
+        if (buffer->fermata_attuale == STAZIONE) {
+            buffer->fermata_attuale = CENTRO_STORICO;
+        } else if (buffer->fermata_attuale == CENTRO_STORICO) {
+            buffer->fermata_attuale = STAZIONE;
         }
 
+        // pulisco le variabili inconsistenti per la nuova fermata
         buffer->ubriachi = 0;
 
-        printf("sto ripartendo\n");
+        if (buffer->fermata_attuale == STAZIONE) {
+            printf("[CABINA]: arrivato alla stazione\n");
+        } else if (buffer->fermata_attuale == CENTRO_STORICO) {
+            printf("[CABINA]: arrivato al centro storico\n");
+        }
+
         Pthread_cond_broadcast(&buffer->cond_arrivata);
         Pthread_cond_wait(&buffer->cond_scesi_tutti, &buffer->mtx);
+
+        printf("[CABINA]: sto ripartendo\n");
+        
         Pthread_mutex_unlock(&buffer->mtx);
     }   
 
+    pthread_exit(NULL);
     return NULL;
 }
 
@@ -114,77 +127,63 @@ void* fn_sobri(void* _biglietto) {
 
     while (1) {
         Pthread_mutex_lock(&buffer->mtx);
-        // if(buffer->waitlen >= 4) // !!! // capire perche va in deadlock quando non aspetto esattamente tutti i passeggeri
-        //     Pthread_cond_signal(&buffer->cond_waitfull);
-        if (biglietto_->fermata_ == 0) {
-            buffer->sobri_stazione++; // !!!
-            if(buffer->sobri_stazione >= 4 && buffer->fermata_attuale==0) 
-                Pthread_cond_signal(&buffer->cond_waitfull);
-            printf("SOBRIO: %d -> aspetto alla stazione, con altri %d\n", biglietto_->id, buffer->sobri_stazione);
+
+        if (biglietto_->fermata_ == STAZIONE) {
+            buffer->sobri_stazione++;
+            if(buffer->sobri_stazione >= 2 && buffer->fermata_attuale == STAZIONE)
+                Pthread_cond_signal(&buffer->cond_waitfull); // segnal che andranno perse dopo la prima 
+            printf("[SOBRIO: %d] aspetto alla stazione, con altri %d\n", biglietto_->id, buffer->sobri_stazione);
             Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
             num_sobri = buffer->sobri_stazione;
-        } else if (biglietto_->fermata_ == 1) {
-            buffer->sobri_cc++; // !!!
-            if(buffer->sobri_cc >= 4 && buffer->fermata_attuale==1) 
+        } else if (biglietto_->fermata_ == CENTRO_STORICO) {
+            buffer->sobri_cc++;
+            if(buffer->sobri_cc >= 2 && buffer->fermata_attuale == CENTRO_STORICO) 
                 Pthread_cond_signal(&buffer->cond_waitfull);
-            printf("SOBRIO: %d -> aspetto al centro storico, con altri %d\n", biglietto_->id, buffer->sobri_cc);
+            printf("[SOBRIO: %d] aspetto al centro storico, con altri %d\n", biglietto_->id, buffer->sobri_cc);
             Pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
             num_sobri = buffer->sobri_cc;
-        } else {
-            // errore
         }
 
-
-        if (buffer->num_passengers < 4 && num_sobri >= 4) {
-            buffer->ids[buffer->num_passengers] = biglietto_->id;
-            buffer->num_passengers++;
-            buffer->ubriachi = 1;
-            if (buffer->num_passengers == 4) {
-                Pthread_cond_signal(&buffer->cond_piena);
-            } else {
-                if (biglietto_->fermata_ == 0) {
-                    Pthread_cond_signal(&buffer->cond_staz);
-                } else if (biglietto_->fermata_ == 1) {
-                    Pthread_cond_signal(&buffer->cond_cc);
-                } else {
-                    // errore
-                }
-            }
-            printf("SOBRIO: %d -> ENTRO NELLA CABINA\n", biglietto_->id);
-            Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
-            printf("SONO SOBRIO E SCESO: %d\n", biglietto_->id);
-
-            buffer->num_passengers--;
-            if(buffer->num_passengers == 0){
-                printf("tutti fuori\n");
-                Pthread_cond_signal(&buffer->cond_scesi_tutti);
-            }
-            // diminuire il contatore dei sobri;
-            if (biglietto_->fermata_) {
-                buffer->sobri_cc--;
-                biglietto_->fermata_ = 0;
-            } else {
-                buffer->sobri_stazione--;
-                biglietto_->fermata_ = 1;
-            }
-
-            Pthread_mutex_unlock(&buffer->mtx);
-            sleep(2);
+        buffer->ids[buffer->num_passengers] = biglietto_->id;
+        buffer->num_passengers++;
+        buffer->ubriachi = 1; // flag per bloccare l'accesso agli ubriachi
+        // segnalo alla cabina che puo partire
+        if (buffer->num_passengers == 2) {
+            Pthread_cond_signal(&buffer->cond_piena);
         } else {
-            
-            if (biglietto_->fermata_ == 0) {
-                buffer->sobri_stazione--;
+            // segnalo agli altri passeggeri che possono salire
+            if (biglietto_->fermata_ == STAZIONE) {
                 Pthread_cond_signal(&buffer->cond_staz);
-            } else if (biglietto_->fermata_ == 1) {
-                buffer->sobri_cc--;
+            } else if (biglietto_->fermata_ == CENTRO_STORICO) {
                 Pthread_cond_signal(&buffer->cond_cc);
-            } else {
-                // errore
             }
-            Pthread_mutex_unlock(&buffer->mtx);
         }
+        printf("[SOBRIO: %d] entro nella cabina\n", biglietto_->id);
+        // aspetto l'arrivo della cabina 
+        Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
+        printf("[SOBRIO %d] sceso\n", biglietto_->id);
+
+        buffer->num_passengers--;
+        // se è l'ultimo a scendere segnalo alla cabina che sono scesi tutti
+        if(buffer->num_passengers == 0){
+            printf("scesi tutti\n");
+            Pthread_cond_signal(&buffer->cond_scesi_tutti);
+        }
+        // cambio stazione e diminuisco il contatore dei sobri che attendono alla stazione da dove arrivano
+        if (biglietto_->fermata_ == STAZIONE) {
+            buffer->sobri_stazione--;
+            biglietto_->fermata_ = 1;
+        } else if (biglietto_->fermata_ == CENTRO_STORICO) {
+            buffer->sobri_cc--;
+            biglietto_->fermata_ = 0;
+        }
+
+        Pthread_mutex_unlock(&buffer->mtx);
+        sleep(2);
+
     }
 
+    pthread_exit(NULL);
     return NULL;
 }
 
@@ -192,41 +191,37 @@ void* fn_ubriachi(void* _biglietto) {
 
     biglietto* biglietto_ = (biglietto*) _biglietto;
 
-    printf("UBRIACO: %d\n", biglietto_->id);
-
     // 0: stazione, 1: centro storico
 
     while (1) {
-        pthread_mutex_lock(&buffer->mtx);
-        // if(buffer->waitlen >= 0) // !!!
-        //     pthread_cond_signal(&buffer->cond_waitfull);
-        if (biglietto_->fermata_ == 0) {
-            buffer->ubriachi_stazione++; 
-            pthread_cond_signal(&buffer->cond_waitfull);
-            printf("UBRIACO: %d -> aspetto alla stazione, con altri %d\n", biglietto_->id, buffer->ubriachi_stazione);
-            fflush(stdout);
-            pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
-        } else if (biglietto_->fermata_ == 1) {
-            buffer->ubriachi_cc++; 
-            pthread_cond_signal(&buffer->cond_waitfull);
-            printf("UBRIACO: %d -> aspetto al centro storico, con altri %d\n", biglietto_->id, buffer->ubriachi_cc);
-            fflush(stdout);
-            pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
-        } else {
-            // errore
-        }
+        Pthread_mutex_lock(&buffer->mtx);
 
+        if (biglietto_->fermata_ == STAZIONE) {
+            buffer->ubriachi_stazione++; 
+            Pthread_cond_signal(&buffer->cond_waitfull);
+            printf("[UBRIACO: %d] aspetto alla stazione, con altri %d\n", biglietto_->id, buffer->ubriachi_stazione);
+            fflush(stdout);
+            Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
+        } else if (biglietto_->fermata_ == CENTRO_STORICO) {
+            buffer->ubriachi_cc++; 
+            Pthread_cond_signal(&buffer->cond_waitfull);
+            printf("[UBRIACO: %d] aspetto al centro storico, con altri %d\n", biglietto_->id, buffer->ubriachi_cc);
+            fflush(stdout);
+            Pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
+        }
+        
         if (buffer->ubriachi == 0) {
             buffer->ids[0] = biglietto_->id;
             buffer->num_passengers = 1;
-            buffer->ubriachi = 1;
-            printf("UBRIACO: %d -> ENTRO NELLA CABINA\n", biglietto_->id);
-            pthread_cond_signal(&buffer->cond_piena);
-            pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
-            printf("SONO UBRIACO E SCESO: %d\n", biglietto_->id);
+            printf("[UBRIACO: %d] entro nella cabina\n", biglietto_->id);
+            Pthread_cond_signal(&buffer->cond_piena);
+            // aspetto che la cabina arrivi a destinazione
+            Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
+            printf("[UBRIACO %d]: sceso\n", biglietto_->id);
             buffer->num_passengers--;
             if(buffer->num_passengers == 0){
-                pthread_cond_signal(&buffer->cond_scesi_tutti);
+                printf("scesi tutti\n");
+                Pthread_cond_signal(&buffer->cond_scesi_tutti);
             }
             if (biglietto_->fermata_) {
                 buffer->ubriachi_cc--;
@@ -235,22 +230,21 @@ void* fn_ubriachi(void* _biglietto) {
                 buffer->ubriachi_stazione--;
                 biglietto_->fermata_ = 1;
             }
-            pthread_mutex_unlock(&buffer->mtx);
+            Pthread_mutex_unlock(&buffer->mtx);
             sleep(3);
-        } else {
-            if (biglietto_->fermata_ == 0) {
+        } else { // se nella cabina ci sono sobri non posso entrare e devo dire agli alti passeggeri di poter entrare
+            if (biglietto_->fermata_ == STAZIONE) {
                 buffer->ubriachi_stazione--;
                 Pthread_cond_signal(&buffer->cond_staz);
-            } else if (biglietto_->fermata_ == 1) {
+            } else if (biglietto_->fermata_ == CENTRO_STORICO) {
                 buffer->ubriachi_cc--;
                 Pthread_cond_signal(&buffer->cond_cc);
-            } else {
-                // errore
             }
-            pthread_mutex_unlock(&buffer->mtx);
+            Pthread_mutex_unlock(&buffer->mtx);
         }
     }
 
+    pthread_exit(NULL);
     return NULL;
 }
 
@@ -327,15 +321,15 @@ int main(int argc, char* argv[]) {
         buffer->ubriachi_stazione=0;
         buffer->ubriachi_cc=0;
 
-        /* eseguo cabina */
+        // eseguo cabina
         Pthread_create(&thread_cabina, NULL, fn_cabina, NULL);
 
     } else if (role == 'S') { // sobri
 
-        // 4 sobri
+        // 6 sobri
         pthread_t* threads_sobri;
 
-        threads_sobri = (pthread_t*)  Malloc(sizeof(pthread_t)*5);
+        threads_sobri = (pthread_t*)  Malloc(sizeof(pthread_t)*6);
 
         /* Inizializzazione segmento di memoria condivisa */
         shmfd = Shm_open(SHRMEM, O_RDWR, S_IRWXU);
@@ -343,7 +337,7 @@ int main(int argc, char* argv[]) {
         buffer = (buffer_condiviso *)mmap(NULL, sizeof(buffer_condiviso), PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
         
         biglietto* biglietti;
-        biglietti = Malloc(sizeof(biglietti)*5);
+        biglietti = Malloc(sizeof(biglietti)*6);
 
         biglietti[0].id = 1;
         biglietti[0].fermata_ = 0;
@@ -355,13 +349,16 @@ int main(int argc, char* argv[]) {
         biglietti[3].fermata_ = 0;
         biglietti[4].id = 5;
         biglietti[4].fermata_ = 1;
+        biglietti[5].id = 6;
+        biglietti[5].fermata_ = 1;
 
-        for (int i=0; i<5; i++)
+        // eseguo i thread dei sobri
+        for (int i=0; i<6; i++)
             Pthread_create(threads_sobri + i, NULL, fn_sobri, (void *)(biglietti + i));
 
     } else if (role == 'U') { // ubriachi
 
-        // 2
+        // 2 ubriachi
         pthread_t* threads_ubriachi;
 
         threads_ubriachi = (pthread_t*) malloc(sizeof(pthread_t)*2);
@@ -374,12 +371,12 @@ int main(int argc, char* argv[]) {
         biglietto* biglietti;
         biglietti = Malloc(sizeof(biglietti)*2);
 
-        biglietti[0].id = 6;
+        biglietti[0].id = 7;
         biglietti[0].fermata_ = 0;
-        biglietti[1].id = 7;
+        biglietti[1].id = 8;
         biglietti[1].fermata_ = 1;
 
-        /* eseguo produttore */
+        // eseguo i threads degli ubriachi
         for (int i=0; i<2; i++)
             Pthread_create(threads_ubriachi + i, NULL, fn_ubriachi, (void *)(biglietti + i));
 

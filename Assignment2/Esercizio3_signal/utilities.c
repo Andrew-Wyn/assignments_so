@@ -6,8 +6,8 @@ void print_passengers(buffer_condiviso* buffer) {
     if (buffer->num_passengers == 1) {
         printf("passeggero: %d, UBRIACO\n", buffer->ids[0]);
     } else {
-        for(int i=0; i<4; i++) 
-            printf("passeggero: %d, SOBRIO\n", buffer->ids[i]);
+        printf("passeggero: %d, SOBRIO\n", buffer->ids[0]);
+        printf("passeggero: %d, SOBRIO\n", buffer->ids[1]);
     }
     fflush(stdout);
 }

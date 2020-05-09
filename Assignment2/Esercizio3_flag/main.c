@@ -66,8 +66,6 @@ Centro storico alla partenza ha 2 sobri e 1 ubriaco
 
 */
 
-
-
 // AGGIUNGERE FUNZIONE PER PULIRE BUFFER prima dell'avvio dei thread
 
 // TEST
