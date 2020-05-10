@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -pedantic -D_DEFAULT_SOURCE -Wall
 
 fibonacci: fibonacci.o
 

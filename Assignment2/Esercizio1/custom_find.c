@@ -17,7 +17,7 @@
 // /home/fcoro/directory/file1.txt Fri May  5 19:25:09 2020
 // /home/fcoro/directory/subdir/file2.txt Fri May  4 19:25:09 2020
 
-#include <stdio.h>
+#include <stdio.h> 
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdlib.h> // exit, EXIT_FAILURE
@@ -25,22 +25,57 @@
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
+#include <limits.h>
 
 #define MAXBUFF 128
 
 // aggiungere wrapping functions per le systemcalls 
+
+// WRAPPED FUNCTION FOR ERROR HANDLING
+
+void Stat(const char* nomeDir, struct stat* statFile) {
+    int retVal;
+    if ((retVal = stat(nomeDir, statFile)) != 0) {
+        int varErrno = errno;
+        perror("stat");
+        exit(varErrno);
+    }
+}
+
+DIR* Opendir(const char* nomeDir) {
+    DIR* dir;
+    if ((dir = opendir(nomeDir)) == NULL) {
+        int varErrno = errno;
+        perror("opendir");
+        exit(varErrno);
+    }
+    return dir;
+}
+
+void Closedir(DIR* dir) {
+    int retVal;
+    if ((retVal = closedir(dir)) != 0) {
+        int varErrno = errno;
+        perror("closedir");
+        exit(varErrno);
+    }
+}
+
+// UTILITIES FUNCTIONS
 
 int checkExt(char* fileName, const char* extStr) {
     int lenFileName = strlen(fileName);
     int lenExtStr = strlen(extStr);
     if (lenExtStr > lenFileName) {
         return 0;
-    }
+    } 
+
     for (int i=lenFileName-lenExtStr; i<=lenFileName-1; i++) {
         if (fileName[i] != extStr[i + lenExtStr - lenFileName]) {
             return 0;
         }
-    }
+    } 
+    
     return 1;
 }
 
@@ -49,38 +84,24 @@ int checkValidDir(char* fileName) {
 }
 
 void recursiveSearchDir(const char* nomeDir, const char* extStr) {
-
     struct stat statFile;
-    int retVal;
-    int varErrno;
+    DIR* dir;
+    struct dirent* file = NULL;
 
-    if ((retVal = stat(nomeDir, &statFile)) != 0) {
-        varErrno = errno;
-        perror("stat");
-        exit(varErrno);
-    }
+    Stat(nomeDir, &statFile);
 
     if (!S_ISDIR(statFile.st_mode)) {
-        fprintf(stderr, "[ERRORE]: non è una directory valida");
+        fprintf(stderr, "[ERRORE]: non è una directory valida\n");
         exit(EXIT_FAILURE);
     }
-
-    DIR* dir;
-
-    if ((dir = opendir(nomeDir)) == NULL) {
-        varErrno = errno;
-        perror("opendir");
-        exit(EXIT_FAILURE);
-    }
-
-
-    struct dirent* file = NULL;
+    
+    dir = Opendir(nomeDir);
 
     while ((errno = 0, file = readdir(dir)) != NULL) {
         char fileName[MAXBUFF] = "";
 
         if (strlen(nomeDir) + strlen(file->d_name) + 2 > MAXBUFF) {
-            fprintf(stderr, "ERRORE MAXBUFF TROPPO PICCOLO\n");
+            fprintf(stderr, "[ERRORE]: MAXBUFF sistuisce un valore troppo piccolo\n");
             exit(EXIT_FAILURE);
         }
 
@@ -89,17 +110,11 @@ void recursiveSearchDir(const char* nomeDir, const char* extStr) {
             strncat(fileName, "/", MAXBUFF -1);
         strncat(fileName, file->d_name, MAXBUFF -1);
 
-        if ((retVal = stat(fileName, &statFile)) != 0) {
-            varErrno = errno;
-            perror("stat");
-            exit(varErrno);
-        }
+        Stat(fileName, &statFile);
 
         if (S_ISDIR(statFile.st_mode)) {
-            if (checkValidDir(fileName)){
+            if (checkValidDir(fileName))
                 recursiveSearchDir(fileName, extStr);
-            }
-                
         } else {
             if (checkExt(fileName, extStr)) 
                 printf("nome file: %s - ultima modifica: %s", realpath(fileName, NULL), ctime(&statFile.st_mtime));
@@ -109,29 +124,28 @@ void recursiveSearchDir(const char* nomeDir, const char* extStr) {
     if (errno != 0) {
         perror("readdir");
     }
-
-    if ((retVal = closedir(dir)) != 0) {
-        varErrno=errno;
-        perror("closedir");
-        exit(varErrno);
-    }
+    
+    Closedir(dir);
 
 }
 
 int main(int argc, char *argv[]) {
+    char nomeDir[MAXBUFF];
+
     if (argc == 1) {
-        fprintf(stderr, "numero parametro non corretto\n");
+        fprintf(stderr, "[ERRORE]: numero parametri non corretto\n");
         exit(EXIT_FAILURE);
     }
 
-    char nomeDir[MAXBUFF] = "";
-
     if (argc == 2) {
         strcpy(nomeDir, "./");
-    } else {
+    } else if (argc == 3) {
         strcpy(nomeDir, argv[2]);
+    } else {
+        fprintf(stderr, "[ERRORE]: numero parametri non corretto\n");
+        exit(EXIT_FAILURE);
     }
 
     recursiveSearchDir(nomeDir, argv[1]);
-
+    return 0;
 }

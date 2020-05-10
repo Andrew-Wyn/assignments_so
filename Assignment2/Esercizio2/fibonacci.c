@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <errno.h>
 
 pid_t PID;
 
@@ -33,11 +34,6 @@ int fib(int N) {
 
     PID = fork();
 
-    if (N==2) {
-        fprintf(stderr, "[ERRORE]: errore nella fork processo: %d\n", getpid());
-        exit(-1);
-    }
-
     if (PID > 0) { // padre
         int status;
         if (waitpid(PID, &status, 0) != -1) {
@@ -46,11 +42,16 @@ int fib(int N) {
                 exit(-1);
             }
             return fib(N-1) + retSon;
-        }    
+        } else { // waitpid error
+            fprintf(stderr, "[ERRORE]: nella waitpid, processo: %d\n", getpid());
+            perror("waitpid");
+            exit(-1);
+        }
     } else if (PID == 0) { // figlio
         exit(fib(N-2));
     } else {
-        fprintf(stderr, "[ERRORE]: errore nella fork processo: %d\n", getpid());
+        fprintf(stderr, "[ERRORE]: errore nella fork, processo: %d\n", getpid());
+        perror("fork");
         exit(-1);
     }
     return -1;
@@ -66,7 +67,7 @@ int main(int argc, char* argv[]) {
 
     if (N <= 10 && N >= 0) {
         int fibo = fib(N);
-        fprintf(stdout, "result: %d\n", fibo);
+        fprintf(stdout, "[OK] result: %d\n", fibo);
     } else {
         fprintf(stdout, "[ERRORE]: il numero in input deve essere compreso fra 0 e 10\n");
         exit(EXIT_FAILURE);

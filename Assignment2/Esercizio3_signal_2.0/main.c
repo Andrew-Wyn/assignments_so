@@ -72,7 +72,11 @@ void* fn_cabina(void* args) {
         }
 
         printf("[CABINA]: aspetto che salgano tutti\n");
-        Pthread_cond_wait(&buffer->cond_piena, &buffer->mtx);
+        printf("%d - %d\n",buffer->sobri, buffer->num_passengers);
+        // se la cabina non è piena mi metto in attesa finche non sale l'ultimo passeggero l'essere ultimo è gestito dai passegeri stessi
+        if (!((buffer->ubriachi == 1 && buffer->num_passengers == 2) || (buffer->sobri == 1 && buffer->num_passengers == 1))){
+            Pthread_cond_wait(&buffer->cond_piena, &buffer->mtx);
+        }
         
         printf("[CABINA]: partita\n");
         
@@ -130,9 +134,11 @@ void* fn_sobri(void* _biglietto) {
             }    
         }
 
+        // modifico le variabili che indicano la salita nella cabina dell'attuale passegero
         buffer->ids[buffer->num_passengers] = biglietto_->id;
         buffer->num_passengers++;
         buffer->ubriachi = 1; // flag per bloccare l'accesso agli ubriachi
+
         // segnalo alla cabina che puo partire
         if (buffer->num_passengers == 2) {
             Pthread_cond_signal(&buffer->cond_piena);
@@ -155,11 +161,11 @@ void* fn_sobri(void* _biglietto) {
             printf("scesi tutti\n");
             Pthread_cond_signal(&buffer->cond_scesi_tutti);
         }
-        // cambio stazione e diminuisco il contatore dei sobri che attendono alla stazione da dove arrivano
+        // cambio stazione
         if (biglietto_->fermata_ == STAZIONE) {
-            biglietto_->fermata_ = 1;
+            biglietto_->fermata_ = CENTRO_STORICO;
         } else if (biglietto_->fermata_ == CENTRO_STORICO) {
-            biglietto_->fermata_ = 0;
+            biglietto_->fermata_ = STAZIONE;
         }
 
         Pthread_mutex_unlock(&buffer->mtx);
@@ -175,8 +181,6 @@ void* fn_ubriachi(void* _biglietto) {
 
     biglietto* biglietto_ = (biglietto*) _biglietto;
 
-    // 0: stazione, 1: centro storico
-
     while (1) {
         Pthread_mutex_lock(&buffer->mtx);
 
@@ -191,10 +195,13 @@ void* fn_ubriachi(void* _biglietto) {
             }    
         }
         
+        // modifico le variabili che indicano la salita nella cabina dell'attuale passegero
         buffer->ids[0] = biglietto_->id;
         buffer->num_passengers = 1;
         buffer->sobri = 1;
+
         printf("[UBRIACO: %d] entro nella cabina\n", biglietto_->id);
+        // segnalo che la cabina puo partire
         Pthread_cond_signal(&buffer->cond_piena);
         // aspetto che la cabina arrivi a destinazione
         Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
@@ -204,10 +211,10 @@ void* fn_ubriachi(void* _biglietto) {
             printf("scesi tutti\n");
             Pthread_cond_signal(&buffer->cond_scesi_tutti);
         }
-        if (biglietto_->fermata_) {
-            biglietto_->fermata_ = 0;
-        } else {
-            biglietto_->fermata_ = 1;
+        if (biglietto_->fermata_ == STAZIONE) {
+            biglietto_->fermata_ = CENTRO_STORICO;
+        } else if (biglietto_->fermata_ == CENTRO_STORICO) {
+            biglietto_->fermata_ = STAZIONE;
         }
         Pthread_mutex_unlock(&buffer->mtx);
         sleep(3);
@@ -240,16 +247,9 @@ int main(int argc, char* argv[]) {
     if (role == 'C') { /* cabina */
         pthread_t thread_cabina;
         // init mem cond
-        shmfd = shm_open(SHRMEM, O_CREAT | O_EXCL | O_RDWR, S_IRWXU);
-        if (shmfd < 0) {
-            perror("shm_open");
-            exit(1);
-        }
+        shmfd = Shm_open(SHRMEM, O_CREAT | O_EXCL | O_RDWR, S_IRWXU);
 
-        if (ftruncate(shmfd, shared_seg_size) != 0) {
-            perror("ftruncate");
-            exit(1);
-        }
+        Ftruncate(shmfd, shared_seg_size);
 
         buffer = (buffer_condiviso*)mmap(NULL, sizeof(buffer_condiviso), PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
 
@@ -287,6 +287,8 @@ int main(int argc, char* argv[]) {
         buffer->sobri = 0;
         buffer->pronta = 1;
 
+        sleep(2);
+
         // eseguo cabina
         Pthread_create(&thread_cabina, NULL, fn_cabina, NULL);
 
@@ -321,6 +323,14 @@ int main(int argc, char* argv[]) {
         // eseguo i thread dei sobri
         for (int i=0; i<6; i++)
             Pthread_create(threads_sobri + i, NULL, fn_sobri, (void *)(biglietti + i));
+        
+        for (int i=0; i<6; i++){
+            pthread_join(threads_sobri + i, NULL);
+        }
+        
+        // free heap memory
+        free(threads_sobri);
+        free(biglietti);
 
     } else if (role == 'U') { // ubriachi
 
@@ -345,6 +355,14 @@ int main(int argc, char* argv[]) {
         // eseguo i threads degli ubriachi
         for (int i=0; i<2; i++)
             Pthread_create(threads_ubriachi + i, NULL, fn_ubriachi, (void *)(biglietti + i));
+
+        for (int i=0; i<2; i++){
+            pthread_join(threads_ubriachi + i, NULL);
+        }
+
+        // free heap memory
+        free(threads_ubriachi);
+        free(biglietti);
 
     } else {
         return 1;
