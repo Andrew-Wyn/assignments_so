@@ -56,7 +56,7 @@ buffer_condiviso* buffer;
 void* fn_cabina(void* args) {
 
     buffer->fermata_attuale = STAZIONE; 
-    // sleep(3); // se aggiungo posso eliminare anche la wait iniziale della cabina
+
     while (1) {
     
         Pthread_mutex_lock(&buffer->mtx);
@@ -74,7 +74,7 @@ void* fn_cabina(void* args) {
         printf("[CABINA]: aspetto che salgano tutti\n");
         printf("%d - %d\n",buffer->sobri, buffer->num_passengers);
         // se la cabina non è piena mi metto in attesa finche non sale l'ultimo passeggero l'essere ultimo è gestito dai passegeri stessi
-        if (!((buffer->ubriachi == 1 && buffer->num_passengers == 2) || (buffer->sobri == 1 && buffer->num_passengers == 1))){
+        while (!((buffer->ubriachi == 1 && buffer->num_passengers == 2) || (buffer->sobri == 1 && buffer->num_passengers == 1))){
             Pthread_cond_wait(&buffer->cond_piena, &buffer->mtx);
         }
         
@@ -104,7 +104,9 @@ void* fn_cabina(void* args) {
         }
 
         Pthread_cond_broadcast(&buffer->cond_arrivata);
-        Pthread_cond_wait(&buffer->cond_scesi_tutti, &buffer->mtx);
+
+        while (buffer->num_passengers != 0)
+            Pthread_cond_wait(&buffer->cond_scesi_tutti, &buffer->mtx);
 
         printf("[CABINA]: sto ripartendo\n");
         
@@ -126,10 +128,10 @@ void* fn_sobri(void* _biglietto) {
 
         while (biglietto_->fermata_ != buffer->fermata_attuale || buffer->sobri == 1 || buffer->num_passengers == 2 || !buffer->pronta) {
             if (biglietto_->fermata_ == STAZIONE) {
-                printf("[SOBRIO: %d] aspetto alla stazione\n", biglietto_->id);
+                //printf("[SOBRIO: %d] aspetto alla stazione\n", biglietto_->id);
                 Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
             } else if (biglietto_->fermata_ == CENTRO_STORICO){
-                printf("[SOBRIO: %d] aspetto al centro storico\n", biglietto_->id);
+                //printf("[SOBRIO: %d] aspetto al centro storico\n", biglietto_->id);
                 Pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
             }    
         }
@@ -152,7 +154,10 @@ void* fn_sobri(void* _biglietto) {
         }
         printf("[SOBRIO: %d] entro nella cabina\n", biglietto_->id);
         // aspetto l'arrivo della cabina 
-        Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
+
+        while (buffer->pronta == 1)
+            Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
+        
         printf("[SOBRIO %d] sceso\n", biglietto_->id);
 
         buffer->num_passengers--;
@@ -186,12 +191,11 @@ void* fn_ubriachi(void* _biglietto) {
 
         while (biglietto_->fermata_ != buffer->fermata_attuale || buffer->ubriachi == 1 || buffer->num_passengers > 0 || !buffer->pronta) {
             if (biglietto_->fermata_ == STAZIONE) {
-                printf("[UBRIACO: %d] aspetto alla stazione\n", biglietto_->id);
+                //printf("[UBRIACO: %d] aspetto alla stazione\n", biglietto_->id);
                 Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
             } else if (biglietto_->fermata_ == CENTRO_STORICO){
-                printf("[UBRIACO: %d] aspetto al centro storico\n", biglietto_->id);
+                //printf("[UBRIACO: %d] aspetto al centro storico\n", biglietto_->id);
                 Pthread_cond_wait(&buffer->cond_cc, &buffer->mtx);
-                printf("[UBRIACO: %d] LIBERO\n", biglietto_->id);
             }    
         }
         
@@ -204,7 +208,10 @@ void* fn_ubriachi(void* _biglietto) {
         // segnalo che la cabina puo partire
         Pthread_cond_signal(&buffer->cond_piena);
         // aspetto che la cabina arrivi a destinazione
-        Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
+
+        while (buffer->pronta == 1)
+            Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
+        
         printf("[UBRIACO %d]: sceso\n", biglietto_->id);
         buffer->num_passengers--;
         if(buffer->num_passengers == 0){
@@ -246,51 +253,42 @@ int main(int argc, char* argv[]) {
 
     if (role == 'C') { /* cabina */
         pthread_t thread_cabina;
-        // init mem cond
+
+        // crea effettivamente in memoria un oggetto shared memory passandogli il nome SHRMEM e le flag per la creazione e per la creazione solo se non preesistente
         shmfd = Shm_open(SHRMEM, O_CREAT | O_EXCL | O_RDWR, S_IRWXU);
 
+        // aggiusto le dimensioni della porzione di memoria necessaria e allocata per lo shared memory object
         Ftruncate(shmfd, shared_seg_size);
 
-        buffer = (buffer_condiviso*)mmap(NULL, sizeof(buffer_condiviso), PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+        // mappa l'oggeto dalla memoria condivisa allo spazio di indirizzi della virtuale del processo in lettura e scrittura con modificatore MAP_SHARED che implica che le modifiche saranno condivise fra tutti i processi
+        buffer = (buffer_condiviso*)mmap(NULL, shared_seg_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
 
         // inizializzo i mutex e variabili condizionali con relativi attributi
         pthread_mutexattr_t mattr;
         pthread_condattr_t cvattr;
 
         Pthread_mutexattr_init(&mattr);
-
         Pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED);
-
         pthread_mutex_init(&buffer->mtx, &mattr);
-
         Pthread_condattr_init(&cvattr);
-
         Pthread_condattr_setpshared(&cvattr, PTHREAD_PROCESS_SHARED);
-
         Pthread_cond_init(&buffer->cond_staz, &cvattr);
-
         Pthread_cond_init(&buffer->cond_cc, &cvattr);
-
         Pthread_cond_init(&buffer->cond_piena, &cvattr);
-
         Pthread_cond_init(&buffer->cond_arrivata, &cvattr);
-
         Pthread_cond_init(&buffer->cond_scesi_tutti, &cvattr);
-
         Pthread_condattr_destroy(&cvattr);
-
         Pthread_mutexattr_destroy(&mattr);
 
-
+        // inizializzo le variabili nel buffer che devono avere valori specifici dall'inizio
         buffer->num_passengers = 0;
         buffer->ubriachi = 0;
         buffer->sobri = 0;
-        buffer->pronta = 1;
-
-        sleep(2);
+        buffer->pronta = 0;
 
         // eseguo cabina
         Pthread_create(&thread_cabina, NULL, fn_cabina, NULL);
+        pthread_join(thread_cabina, NULL);
 
     } else if (role == 'S') { // sobri
 
@@ -299,10 +297,11 @@ int main(int argc, char* argv[]) {
 
         threads_sobri = (pthread_t*)  Malloc(sizeof(pthread_t)*6);
 
-        /* Inizializzazione segmento di memoria condivisa */
+        // creo l'oggetto in memoria condivisa, non viene effettivamente creato da tale processo, ma viene aperto in lettura e scrittura
         shmfd = Shm_open(SHRMEM, O_RDWR, S_IRWXU);
 
-        buffer = (buffer_condiviso *)mmap(NULL, sizeof(buffer_condiviso), PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+        // mappa l'oggeto dalla memoria condivisa allo spazio di indirizzi della virtuale del processo in lettura e scrittura con modificatore MAP_SHARED che implica che le modifiche saranno condivise fra tutti i processi
+        buffer = (buffer_condiviso *)mmap(NULL, shared_seg_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
         
         biglietto* biglietti;
         biglietti = Malloc(sizeof(biglietti)*6);
@@ -325,7 +324,7 @@ int main(int argc, char* argv[]) {
             Pthread_create(threads_sobri + i, NULL, fn_sobri, (void *)(biglietti + i));
         
         for (int i=0; i<6; i++){
-            pthread_join(threads_sobri + i, NULL);
+            pthread_join(threads_sobri[i], NULL);
         }
         
         // free heap memory
@@ -339,10 +338,11 @@ int main(int argc, char* argv[]) {
 
         threads_ubriachi = (pthread_t*) malloc(sizeof(pthread_t)*2);
 
-        /* Inizializzazione segmento di memoria condivisa */
+        // creo l'oggetto in memoria condivisa, non viene effettivamente creato da tale processo, ma viene aperto in lettura e scrittura
         shmfd = Shm_open(SHRMEM, O_RDWR, S_IRWXU);
 
-        buffer = (buffer_condiviso *)mmap(NULL, sizeof(buffer_condiviso), PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+        // mappa l'oggeto dalla memoria condivisa allo spazio di indirizzi della virtuale del processo in lettura e scrittura con modificatore MAP_SHARED che implica che le modifiche saranno condivise fra tutti i processi
+        buffer = (buffer_condiviso *)mmap(NULL, shared_seg_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
         
         biglietto* biglietti;
         biglietti = Malloc(sizeof(biglietti)*2);
@@ -357,7 +357,7 @@ int main(int argc, char* argv[]) {
             Pthread_create(threads_ubriachi + i, NULL, fn_ubriachi, (void *)(biglietti + i));
 
         for (int i=0; i<2; i++){
-            pthread_join(threads_ubriachi + i, NULL);
+            pthread_join(threads_ubriachi[i], NULL);
         }
 
         // free heap memory

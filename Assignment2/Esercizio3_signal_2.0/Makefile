@@ -11,6 +11,3 @@ main: main.o utilities.o
 main.o: main.c
 
 utilities.o: utilities.c
-
-clean:
-	@unlink /dev/shm/$(VARSHRMEM)
