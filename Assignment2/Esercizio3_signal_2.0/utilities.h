@@ -41,7 +41,7 @@ typedef struct
 
     int ids[2]; // indica gli id dei passeggeri a bordo
 
-    int pronta;
+    int in_viaggio; // 
 } buffer_condiviso;
 
 // funzioni

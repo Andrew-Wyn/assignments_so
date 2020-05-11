@@ -8,7 +8,7 @@ if [ $? -eq 0 ]; then
     echo -e "\nCompilazione terminata correttamente\n"
 else
     echo -e "\nCompilazione fallita. Rimozione eventuali file generati:"
-    # make clean
+    make clean
     exit
 fi
 

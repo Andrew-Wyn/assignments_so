@@ -61,7 +61,7 @@ void* fn_cabina(void* args) {
     
         Pthread_mutex_lock(&buffer->mtx);
 
-        buffer->pronta = 1;
+        buffer->in_viaggio = 0;
      
         if (buffer->fermata_attuale == STAZIONE) {
             printf("[CABINA]: partenza dalla stazione\n");
@@ -72,7 +72,6 @@ void* fn_cabina(void* args) {
         }
 
         printf("[CABINA]: aspetto che salgano tutti\n");
-        printf("%d - %d\n",buffer->sobri, buffer->num_passengers);
         // se la cabina non è piena mi metto in attesa finche non sale l'ultimo passeggero l'essere ultimo è gestito dai passegeri stessi
         while (!((buffer->ubriachi == 1 && buffer->num_passengers == 2) || (buffer->sobri == 1 && buffer->num_passengers == 1))){
             Pthread_cond_wait(&buffer->cond_piena, &buffer->mtx);
@@ -80,7 +79,6 @@ void* fn_cabina(void* args) {
         
         printf("[CABINA]: partita\n");
         
-        printf("buffer: %p\n", buffer);
         print_passengers(buffer);
 
         // tempo necessario per il viaggio
@@ -95,7 +93,7 @@ void* fn_cabina(void* args) {
         // pulisco le variabili inconsistenti per la nuova fermata
         buffer->ubriachi = 0;
         buffer->sobri = 0;
-        buffer->pronta = 0;
+        buffer->in_viaggio = 1;
 
         if (buffer->fermata_attuale == STAZIONE) {
             printf("[CABINA]: arrivato alla stazione\n");
@@ -121,12 +119,10 @@ void* fn_sobri(void* _biglietto) {
 
     biglietto* biglietto_ = (biglietto*) _biglietto;
 
-    int num_sobri;
-
     while (1) {
         Pthread_mutex_lock(&buffer->mtx);
 
-        while (biglietto_->fermata_ != buffer->fermata_attuale || buffer->sobri == 1 || buffer->num_passengers == 2 || !buffer->pronta) {
+        while (biglietto_->fermata_ != buffer->fermata_attuale || buffer->sobri == 1 || buffer->num_passengers == 2 || buffer->in_viaggio) {
             if (biglietto_->fermata_ == STAZIONE) {
                 //printf("[SOBRIO: %d] aspetto alla stazione\n", biglietto_->id);
                 Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
@@ -155,7 +151,7 @@ void* fn_sobri(void* _biglietto) {
         printf("[SOBRIO: %d] entro nella cabina\n", biglietto_->id);
         // aspetto l'arrivo della cabina 
 
-        while (buffer->pronta == 1)
+        while (!buffer->in_viaggio)
             Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
         
         printf("[SOBRIO %d] sceso\n", biglietto_->id);
@@ -189,7 +185,7 @@ void* fn_ubriachi(void* _biglietto) {
     while (1) {
         Pthread_mutex_lock(&buffer->mtx);
 
-        while (biglietto_->fermata_ != buffer->fermata_attuale || buffer->ubriachi == 1 || buffer->num_passengers > 0 || !buffer->pronta) {
+        while (biglietto_->fermata_ != buffer->fermata_attuale || buffer->ubriachi == 1 || buffer->num_passengers > 0 || buffer->in_viaggio) {
             if (biglietto_->fermata_ == STAZIONE) {
                 //printf("[UBRIACO: %d] aspetto alla stazione\n", biglietto_->id);
                 Pthread_cond_wait(&buffer->cond_staz, &buffer->mtx);
@@ -209,7 +205,7 @@ void* fn_ubriachi(void* _biglietto) {
         Pthread_cond_signal(&buffer->cond_piena);
         // aspetto che la cabina arrivi a destinazione
 
-        while (buffer->pronta == 1)
+        while (!buffer->in_viaggio)
             Pthread_cond_wait(&buffer->cond_arrivata, &buffer->mtx);
         
         printf("[UBRIACO %d]: sceso\n", biglietto_->id);
@@ -284,7 +280,7 @@ int main(int argc, char* argv[]) {
         buffer->num_passengers = 0;
         buffer->ubriachi = 0;
         buffer->sobri = 0;
-        buffer->pronta = 0;
+        buffer->in_viaggio = 1;
 
         // eseguo cabina
         Pthread_create(&thread_cabina, NULL, fn_cabina, NULL);
