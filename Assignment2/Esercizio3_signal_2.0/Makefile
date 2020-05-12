@@ -2,6 +2,8 @@ CC = gcc
 CFLAGS = -pedantic -Wall -D_POSIX_C_SOURCE=200112L
 LDLIBS = -lpthread -lrt
 
+VAR_SHMEM = minimetro
+
 .PHONY: all clean
 
 main: main.o utilities.o
@@ -12,4 +14,4 @@ utilities.o: utilities.c
 
 clean:	
 	-rm -f main *.o
-
+	-unlink /dev/shm/$(VAR_SHMEM) &> /dev/null

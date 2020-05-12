@@ -51,8 +51,6 @@
 
 #include "utilities.h"
 
-buffer_condiviso* buffer;
-
 void* fn_cabina(void* args) {
 
     buffer->fermata_attuale = STAZIONE; 

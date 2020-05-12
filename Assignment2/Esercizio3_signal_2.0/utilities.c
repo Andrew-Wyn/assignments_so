@@ -1,7 +1,7 @@
 
 #include "utilities.h"
 
-void print_passengers(buffer_condiviso* buffer) {
+void print_passengers() {
     printf("composizione cabina: %d passegeri\n", buffer->num_passengers);
     if (buffer->num_passengers == 1) {
         printf("passeggero: %d, UBRIACO\n", buffer->ids[0]);

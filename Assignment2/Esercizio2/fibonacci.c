@@ -21,9 +21,12 @@
 #include <errno.h>
 
 pid_t PID;
-
+// funzione di fibonacci ricorsiva la quale associa ad ogni sottochiamata di se stessa al flusso di un processo differente padre e figlio
+// si noti che l'albero della ricorsione fermato in un qualsiasi punto ha nelle foglie processi differenti che attendono il wait degli altri tranne quello
+// che è attualmente in esecuzione
 int fib(int N) {
 
+    // casi base della ricorsione, non serve generare figli per calcolarli
     if (N == 0) {
         return 0;
     } 
@@ -36,11 +39,12 @@ int fib(int N) {
 
     if (PID > 0) { // padre
         int status;
-        if (waitpid(PID, &status, 0) != -1) {
+        if (waitpid(PID, &status, 0) != -1) { // aspetto return del processo figlio che sta eseguendo la fib (n-2) prima di richiamare la fib (n-1) e risplittare l'esecuzione
             int retSon = WEXITSTATUS(status);
             if (retSon == 255) { // 255 non è un valore che rientra nel codominio della nostra funzione percio se ritorno 255 da un fork implica che ha preso il ramo else di errore nella fork controllo che non mi piace
                 exit(-1);
             }
+            // solo il figlio di ogni istanza ritornera il valore tramite exit status normalmente il padre in ogni layer ritorna il valore intero uscendo normalmente dalla chiamata, se poi tale chiamata era richiamata da un figlio esso tornera il valore al padre chiamante con una exit
             return fib(N-1) + retSon;
         } else { // waitpid error
             fprintf(stderr, "[ERRORE]: nella waitpid, processo: %d\n", getpid());
@@ -48,13 +52,12 @@ int fib(int N) {
             exit(-1);
         }
     } else if (PID == 0) { // figlio
-        exit(fib(N-2));
-    } else {
+        exit(fib(N-2)); // richiamo la ricorsione ritornando il valore tramite exit status al padre chiamante
+    } else { // gestione errore della fork
         fprintf(stderr, "[ERRORE]: errore nella fork, processo: %d\n", getpid());
         perror("fork");
         exit(-1);
     }
-    return -1;
 }
 
 int main(int argc, char* argv[]) {
@@ -63,7 +66,16 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    int N = atoi(argv[1]);
+    char* end;
+
+    int N = strtol(argv[1], &end, 10);
+
+    if (*end != '\0') {
+        fprintf(stdout, "[ERRORE]: non hai inserito un numero\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%d\n", N);
 
     if (N <= 10 && N >= 0) {
         int fibo = fib(N);

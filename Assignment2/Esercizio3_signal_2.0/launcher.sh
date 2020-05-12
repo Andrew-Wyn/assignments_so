@@ -3,13 +3,15 @@ var_shMem=minimetro
 unlink /dev/shm/$var_shMem &> /dev/null
 
 echo -e "Compilo ...\n"
+
 make
+
 if [ $? -eq 0 ]; then
     echo -e "\nCompilazione terminata correttamente\n"
 else
     echo -e "\nCompilazione fallita. Rimozione eventuali file generati:"
     make clean
-    exit
+    exit 1
 fi
 
 echo -e "Creo Cabina"
@@ -21,7 +23,7 @@ sleep 1
 echo -e "\nControllo esistenza /dev/shm/${var_shMem}:"
 if ! ls -lh /dev/shm/ | grep -w $var_shMem; then
     echo -e "Errore: non trovo l'area di memoria"
-    exit
+    exit 1
 fi
 
 sleep 2

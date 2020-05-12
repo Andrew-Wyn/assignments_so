@@ -34,18 +34,20 @@ typedef struct
     pthread_cond_t cond_scesi_tutti; // CV sulla quale aspettera la cabina in attesa che tutti i passeggeri siano scesi
 
     int ubriachi; // flag settato dai sobri e indicano ai passeggeri ubriachi che non possono occupare la cabina e devono lasciare il posto
-    int sobri;
+    int sobri; // flag duale del precedente
     int num_passengers; // indica il numero di passeggeri all'interno della cabina
 
     int fermata_attuale; // indica la fermata attuale nella quale si trova la cabina
 
     int ids[2]; // indica gli id dei passeggeri a bordo
 
-    int in_viaggio; // 
+    int in_viaggio; // falg che indica la disponibilita della cabina a far salire i passeggeri
 } buffer_condiviso;
 
+buffer_condiviso* buffer;
+
 // funzioni
-void print_passengers(buffer_condiviso* buffer);
+void print_passengers();
 void Pthread_mutex_lock(pthread_mutex_t* mtx);
 void Pthread_mutex_unlock(pthread_mutex_t* mtx);
 void Pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mtx);
