@@ -20,7 +20,7 @@
 #include <stdio.h> 
 #include <sys/stat.h>
 #include <errno.h>
-#include <stdlib.h> // exit, EXIT_FAILURE
+#include <stdlib.h> // exit, EXIT_FAILURE, realpath
 #include <dirent.h>
 #include <string.h>
 #include <stdarg.h>
@@ -63,6 +63,7 @@ void Closedir(DIR* dir) {
 
 // UTILITIES FUNCTIONS
 
+// passato un filename e un'estenzione controllo se il file name ha tale estensione 1 true 0 false
 int checkExt(char* fileName, const char* extStr) {
     int lenFileName = strlen(fileName);
     int lenExtStr = strlen(extStr);
@@ -79,6 +80,7 @@ int checkExt(char* fileName, const char* extStr) {
     return 1;
 }
 
+// controllo che il file name non si riferisce a una directory . o ..
 int checkValidDir(char* fileName) {
     return (strlen(fileName) > 0 && fileName[strlen(fileName) - 1] != '.');
 }
@@ -88,36 +90,52 @@ void recursiveSearchDir(const char* nomeDir, const char* extStr) {
     DIR* dir;
     struct dirent* file = NULL;
 
+    // effettuo stat sul path passato in input nella funzione
     Stat(nomeDir, &statFile);
 
+    // se il file associato al path non è una directory ritorno errore (notare che questo controllo puo andare in exit solo durante la prima call dal main)
     if (!S_ISDIR(statFile.st_mode)) {
         fprintf(stderr, "[ERRORE]: non è una directory valida\n");
         exit(EXIT_FAILURE);
     }
     
+    // uso della SC per aprire la directory, il path è riferito relativo rispetto alla cartella da dove si richiama l'eseguibile
     dir = Opendir(nomeDir);
 
+    // ciclo sui file contenuti nella directory tramite la SC readdir
     while ((errno = 0, file = readdir(dir)) != NULL) {
-        char fileName[MAXBUFF] = "";
+        char fileName[MAXBUFF] = ""; // stringa che conterra il nome della cartella attuale + il nome dei file che contiene 
 
+        // se la MACRO MAXBUFF è troppo piccola per contenere il path dell'attuale file ritorna errore
         if (strlen(nomeDir) + strlen(file->d_name) + 2 > MAXBUFF) {
             fprintf(stderr, "[ERRORE]: MAXBUFF sistuisce un valore troppo piccolo\n");
             exit(EXIT_FAILURE);
         }
 
+        // concateno il nome del file al nome della directory della ricorsione
         strncpy(fileName, nomeDir, MAXBUFF -1);
         if (nomeDir[strlen(nomeDir)-1] != '/')
             strncat(fileName, "/", MAXBUFF -1);
         strncat(fileName, file->d_name, MAXBUFF -1);
 
+        // effettuo una stat sul nuovo path relativo
         Stat(fileName, &statFile);
 
-        if (S_ISDIR(statFile.st_mode)) {
+        if (S_ISDIR(statFile.st_mode)) { // se anche esso è una directory controllo che non siano la rid . o la .. e ricorro nella stessa
             if (checkValidDir(fileName))
                 recursiveSearchDir(fileName, extStr);
-        } else {
-            if (checkExt(fileName, extStr)) 
-                printf("nome file: %s - ultima modifica: %s", realpath(fileName, NULL), ctime(&statFile.st_mtime));
+        } else { // se non è una direcotory stampo le caratteristiche richieste realpath e data di ultima modifica
+            if (checkExt(fileName, extStr)){  // prima di stampare controllo che il nome del file abbia l'estensione richiesta
+                /*
+                    according to man 3 realpath:
+                    If  resolved_path  is  specified as NULL, then realpath() uses malloc(3) to 
+                    allocate a buffer of up to PATH_MAX bytes to hold the resolved pathname, and returns a pointer to this buffer.  The caller
+                    should deallocate this buffer using free(3).
+                */
+                char* realPathFileName = realpath(fileName, NULL);
+                printf("nome file: %s - ultima modifica: %s", realPathFileName, ctime(&statFile.st_mtime));
+                free(realPathFileName);
+            }
         }
     }
 
