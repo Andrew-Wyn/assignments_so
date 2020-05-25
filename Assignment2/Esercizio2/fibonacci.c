@@ -66,8 +66,8 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    // utilizzo la funzione strtol per una conversione con check sulla validita
     char* end;
-
     int N = strtol(argv[1], &end, 10);
 
     if (*end != '\0') {
