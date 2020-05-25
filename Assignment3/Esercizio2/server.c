@@ -1,7 +1,5 @@
 #include "util.h"
 
-// aggiungere gestione segnale SIGPIPE per la scrittura su un socket chiuso
-
 int listenfd, running = 1;
 
 int process_string(char* in, char* out, int n) {
@@ -23,13 +21,14 @@ int process_string(char* in, char* out, int n) {
 }
 
 void* master_handler(void* arg) {
-    // tale è l'unico thread di tutto l'applicativo server in grado di sentire i segnali
+    // tale è l'unico thread di tutto l'applicativo server in grado di sentire i segnali definiti dal testo dell'esercizio
     // non potendo gestire i segnali con un sighandler allora, semplicemente faccio si che durante
 
     sigset_t *set = arg;
     int sig;
 
     for (;;) {
+        // The  sigwait() function suspends execution of the calling thread until one of the signals specified in the signal set set becomes pending.
         sigwait(set, &sig); //
         if (sig == SIGINT || sig == SIGQUIT || sig == SIGTERM || sig == SIGHUP) {
             printf("catched %d\n", sig);
@@ -51,8 +50,8 @@ void* server_sub_routine(void* _fd) {
     char in_buf[BUFSIZE];
     memset(in_buf, 0, BUFSIZE);
     int n = 0;
-    
-    while ((n = read(fd, in_buf, BUFSIZE)) > 0){
+
+    while ((n = read(fd, in_buf, BUFSIZE)) > 0){ // quando legge significa che il client ha chiuso la connessione
         fflush(stdout);
         // process string 
         char out_buf[strlen(in_buf)];
@@ -62,7 +61,7 @@ void* server_sub_routine(void* _fd) {
         else 
             write(fd, "errore conversione", 19);
     }
-    
+
     printf("[SERVER] chiusa la connessione\n");
 
     close(fd); //
@@ -81,7 +80,7 @@ int main() {
     sigaddset(&mask, SIGTERM);
     sigaddset(&mask, SIGHUP);
     sigaddset(&mask, SIGPIPE);
-    if (pthread_sigmask(SIG_BLOCK, &mask, NULL) == -1) {
+    if (pthread_sigmask(SIG_BLOCK, &mask, NULL) == -1) { // A new thread inherits a copy of its creator's signal mask.
         perror("sigprocmask");
         pthread_exit(NULL);
     }
