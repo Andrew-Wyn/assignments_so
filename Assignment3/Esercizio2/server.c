@@ -20,6 +20,7 @@ int process_string(char* in, char* out, int n) {
     return 1; // true tutto ok
 }
 
+// routine del thread addetto all'handling di tutti i segnali non gestiti dagli altri
 void* master_handler(void* arg) {
     // tale è l'unico thread di tutto l'applicativo server in grado di sentire i segnali definiti dal testo dell'esercizio
     // non potendo gestire i segnali con un sighandler allora, semplicemente faccio si che durante
@@ -27,13 +28,16 @@ void* master_handler(void* arg) {
     sigset_t *set = arg;
     int sig;
 
+    // ciclo sopra sigwait la quale si stoppa finche uno dei segnali settati a 1 nella maschera passata come input
+    // non diventa pending (non gestito) in tal momento se il segnale è tra quelli definiti dal testo (controllo ridondante poiche normalmente i segnali non entrano in pending hanno tutti un handler di default)
     for (;;) {
         // The  sigwait() function suspends execution of the calling thread until one of the signals specified in the signal set set becomes pending.
-        sigwait(set, &sig); //
+        Sigwait(set, &sig);
         if (sig == SIGINT || sig == SIGQUIT || sig == SIGTERM || sig == SIGHUP) {
             printf("catched %d\n", sig);
-            shutdown((intptr_t) listenfd, SHUT_RDWR);
-            unlink(SOCKNAME);
+            Shutdown((intptr_t) listenfd, SHUT_RDWR); // faccio terminare le operazioni sul socket
+            Close(listenfd);
+            Unlink(SOCKNAME);
             running = 0;
             break;
         }
@@ -51,20 +55,31 @@ void* server_sub_routine(void* _fd) {
     memset(in_buf, 0, BUFSIZE);
     int n = 0;
 
-    while ((n = read(fd, in_buf, BUFSIZE)) > 0){ // quando legge significa che il client ha chiuso la connessione
+    while ((n = readn(fd, in_buf, BUFSIZE)) > 0) { // quando legge 0 significa che il client ha chiuso la connessione
         fflush(stdout);
         // process string 
         char out_buf[strlen(in_buf)];
         memset(out_buf, '\0', strlen(in_buf));
-        if (process_string(in_buf, out_buf, strlen(in_buf)))
-            write(fd, out_buf, BUFSIZE);
-        else 
-            write(fd, "errore conversione", 19);
+        if (process_string(in_buf, out_buf, strlen(in_buf))) { // effettua la procedura per modificare la stringa
+            if (writen(fd, out_buf, BUFSIZE) == -1) { // se ci sono errori sulla write termino il thread
+                perror("write");
+                break;
+            }
+        } else {
+            if (writen(fd, "errore conversione", 19) == -1) {
+                perror("write");
+                break;
+            }
+        } 
     }
 
-    printf("[SERVER] chiusa la connessione\n");
+    if (n == -1) { // se readn ritorna -1 c'è stato un errore ma comunque chiudo la connessione e termino il thread
+        perror("read");
+    }
 
-    close(fd); //
+    printf("[SERVER] chiudo la connessione\n");
+
+    Close(fd);
 
     pthread_exit(NULL);
     return NULL;
@@ -72,51 +87,47 @@ void* server_sub_routine(void* _fd) {
 
 int main() {
 
-    // SIGINT, SIGQUIT, SIGTERM, SIGHUP
+    // creo una nuova maschera con settati a 1 (inibendoli) i segnali dati dal testo facendoli gestire dal thread master_handler
     sigset_t mask;
     sigemptyset(&mask);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGQUIT);
-    sigaddset(&mask, SIGTERM);
-    sigaddset(&mask, SIGHUP);
-    sigaddset(&mask, SIGPIPE);
-    if (pthread_sigmask(SIG_BLOCK, &mask, NULL) == -1) { // A new thread inherits a copy of its creator's signal mask.
-        perror("sigprocmask");
-        pthread_exit(NULL);
-    }
+    Sigaddset(&mask, SIGINT);
+    Sigaddset(&mask, SIGQUIT);
+    Sigaddset(&mask, SIGTERM);
+    Sigaddset(&mask, SIGHUP);
+    Sigaddset(&mask, SIGPIPE); // inibisco sigpipe per evitare il termine del processo quando una write non va a buonfine causa connessione persa
+    // aggiungo tale maschera alla maschera del processo, con tale metodo la maschera sara ereditata da tutti i thread generati dal principale
+    Pthread_sigmask(SIG_BLOCK, &mask, NULL); // la nuova signal mask diventa l’or di set e della vecchia signal mask (i segnali in set sono aggiunti alla maschera)
 
     printf("server\n");
 
-    
-    listenfd = socket(AF_UNIX, SOCK_STREAM, 0); //
+    // creo un nuovo socket 
+    listenfd = Socket(AF_UNIX, SOCK_STREAM, 0);
     struct sockaddr_un address;
     memset(&address, 0, sizeof(address));
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path, SOCKNAME, strlen(SOCKNAME) + 1);
-    bind(listenfd, (struct sockaddr*) &address, sizeof(address)); //
-    listen(listenfd, SOMAXCONN);
+    Bind(listenfd, (struct sockaddr*) &address, sizeof(address));
+    Listen(listenfd, SOMAXCONN);
     
-    // gestire master handler
+    // thread master handler
     pthread_t master_handler_th;
-    pthread_create(&master_handler_th, NULL, master_handler, (void*) &mask);
+    Pthread_create(&master_handler_th, NULL, master_handler, (void*) &mask);
 
     int fd;
 
     while (running) {
-        fd = accept(listenfd, (struct sockaddr*) NULL, NULL); //
-        if (fd == -1) continue;
+        fd = accept(listenfd, (struct sockaddr*) NULL, NULL);
+        if (fd == -1) continue; // l'errore viene invocato quando effettuo uno shutdown sul descrittore listen fd
         // creare thread connessione
         pthread_t client_thread;
         pthread_attr_t attr_thread;
-        // i thread devono essere creati in detatch mode (void*) (intptr_t) 0
-        pthread_attr_init(&attr_thread); //
-        pthread_attr_setdetachstate(&attr_thread, PTHREAD_CREATE_DETACHED); // 
-        pthread_create(&client_thread, &attr_thread, server_sub_routine, (void*) (intptr_t) fd); //
+        // i thread devono essere creati in detatch mode in modo tale che non devo richiamare join per liberarne le risorse
+        Pthread_attr_init(&attr_thread);
+        Pthread_attr_setdetachstate(&attr_thread, PTHREAD_CREATE_DETACHED);
+        Pthread_create(&client_thread, &attr_thread, server_sub_routine, (void*) (intptr_t) fd);
     }
 
-    pthread_join(master_handler_th, NULL);
-    
-
+    pthread_join(master_handler_th, NULL); //
 
     return 0;
 }

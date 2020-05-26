@@ -52,4 +52,68 @@ Il codice sorgente del cliente e del server deve essere scritto in due file sepa
 #define SOCKNAME "./comunication_socket"
 #define BUFSIZE 256
 
+void Pthread_sigmask(int how, const sigset_t* set, sigset_t* oldset);
+int Socket(int domain, int type, int protocol);
+void Bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
+void Listen(int sockfd, int backlog);
+void Pthread_create(pthread_t* thread, const pthread_attr_t* attr, void *(*start_routine) (void *), void *arg);
+int Accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+void Pthread_attr_init(pthread_attr_t *attr);
+void Pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate);
+void Sigaddset(sigset_t *set, int signum);
+void Sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+void Connect(int fd, struct sockaddr* address, socklen_t addrlen);
+void Close(int fd);
+void Unlink(const char *pathname);
+void Shutdown(int sockfd, int how);
+void Sigwait(sigset_t *set, int *sig);
+
+// nella gestione del sc write quando la connessione viene interrotta, lato client viene gestita 
+// tramite handler sul segnale sigpipe, mentre lato server inibiamo il segnale direttamente 
+// ma appena ci si rimettera in ascolto la read ritornera 0 e capiremo che la connessione è stata interrotta
+// terminando il thread
+static inline int writen(long fd, void *buf, size_t size) // gestisce interruzioni lato kernels
+{
+    size_t left = size;
+    int r;
+    char *bufptr = (char *)buf;
+    while (left > 0)
+    {
+        if ((r = write((int)fd, bufptr, left)) == -1)
+        {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        if (r == 0)
+            return 0;
+        left -= r;
+        bufptr += r;
+    }
+    return 1;
+}
+
+// nella gestione della read durante l'interruzione della connessione ritornera 0 
+// e da cio capiamo che la connessione si è interrotta e lato client terminiamo il processo
+static inline int readn(long fd, void *buf, size_t size)
+{
+    size_t left = size;
+    int r;
+    char *bufptr = (char *)buf;
+    while (left > 0)
+    {
+        if ((r = read((int)fd, bufptr, left)) == -1)
+        {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        if (r == 0)
+            return 0; // gestione chiusura socket
+        left -= r;
+        bufptr += r;
+    }
+    return size;
+}
+
 #endif

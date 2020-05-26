@@ -1,8 +1,10 @@
 #include "util.h"
 
+const char* ERROR_READ_WRITE = "[CLIENT]: il server ha chiuso la connessione\n";
+
 // aggiungere gestione segnale SIGPIPE per la scrittura su un socket chiuso
 static void sig_pipe_handler(int sig) {
-    write(STDERR_FILENO, "[CLIENT] errore\n", 17);
+    write(STDERR_FILENO, ERROR_READ_WRITE, strlen(ERROR_READ_WRITE)+1);
     _exit(0);
 }
 
@@ -14,50 +16,63 @@ int main() {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = sig_pipe_handler;
-    sigset_t handler_mask;
-    sigaddset(&handler_mask, SIGPIPE);
-    sa.sa_mask  = handler_mask;
-    if (sigaction(SIGPIPE, &sa, NULL) == -1){
+    if (sigaction(SIGPIPE, &sa, NULL) == -1) {
         perror("sigaction");
         exit(1);
     }
 
+    // creo un socket
     struct sockaddr_un address;
     int fd;
-    fd = socket(AF_UNIX, SOCK_STREAM, 0); //
+    fd = Socket(AF_UNIX, SOCK_STREAM, 0);
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path, SOCKNAME, strlen(SOCKNAME) + 1);
 
+    // connetto al socket
     printf("connettendo...\n");
-    while (connect(fd, (struct sockaddr*) &address, sizeof(address)) == -1) { //
-        if (errno == ENOENT){
-            fflush(stdout);
-            sleep(1); /* sock non esiste */
-        } else
-            exit(EXIT_FAILURE);
-    }
-
+    Connect(fd, (struct sockaddr*) &address, sizeof(address));
     printf("connesso!!!\n");
     fflush(stdout);
 
     char out_buf[BUFSIZE];
+    int n_read;
     do {
+        // leggo dalla tastiera
         printf("> ");
         fflush(stdout);
         memset(out_buf, '\0', BUFSIZE);
-        read(STDIN_FILENO, out_buf, BUFSIZE); //
+        n_read = read(STDIN_FILENO, out_buf, BUFSIZE);
+        if (n_read == -1) {
+            perror("read");
+            break;
+        }
         out_buf[strlen(out_buf)-1] = '\0';
 
+        // se leggo quit esco
         if (strncmp(out_buf, "quit", 4) == 0) break;
 
-        write(fd, out_buf, BUFSIZE); //
-        read(fd, out_buf, BUFSIZE); //
+        // scrivo al server
+        if (writen(fd, out_buf, BUFSIZE) == -1) {
+            perror("write");
+            exit(errno);
+        }
+
+        // attendo la risposta del server
+        n_read = readn(fd, out_buf, BUFSIZE);
+        if (n_read == 0) { // chiusa connessione
+            fprintf(stderr, "%s", ERROR_READ_WRITE);
+            exit(0);
+        } 
+        if (n_read == -1) {
+            perror("read");
+            break;
+        }
         printf(">> %s\n", out_buf);
         fflush(stdout);
     } while (1);
 
     printf("[CLIENT]: closed\n");
-    close(fd); //
+    Close(fd);
     
     return 0;
 }
