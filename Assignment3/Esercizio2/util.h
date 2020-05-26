@@ -72,6 +72,7 @@ void Sigwait(sigset_t *set, int *sig);
 // tramite handler sul segnale sigpipe, mentre lato server inibiamo il segnale direttamente 
 // ma appena ci si rimettera in ascolto la read ritornera 0 e capiremo che la connessione è stata interrotta
 // terminando il thread
+// !) da notare che nel server è stato impostato di ignorare il segnale SIGIPIPE ma la write verra comunque interrotta quando tentera di scrivere su un socket chiuso, questo perche è la write stessa a generare tale seganale con l'inteto di terminare il processo
 static inline int writen(long fd, void *buf, size_t size) // gestisce interruzioni lato kernels
 {
     size_t left = size;

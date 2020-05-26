@@ -18,7 +18,7 @@ int main() {
     sa.sa_handler = sig_pipe_handler;
     if (sigaction(SIGPIPE, &sa, NULL) == -1) {
         perror("sigaction");
-        exit(1);
+        exit(errno);
     }
 
     // creo un socket
