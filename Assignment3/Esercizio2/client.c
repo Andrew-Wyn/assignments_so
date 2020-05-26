@@ -5,7 +5,7 @@ const char* ERROR_READ_WRITE = "[CLIENT]: il server ha chiuso la connessione\n";
 // aggiungere gestione segnale SIGPIPE per la scrittura su un socket chiuso
 static void sig_pipe_handler(int sig) {
     write(STDERR_FILENO, ERROR_READ_WRITE, strlen(ERROR_READ_WRITE)+1);
-    _exit(0);
+    //_exit(0);
 }
 
 int main() {
@@ -52,16 +52,15 @@ int main() {
         if (strncmp(out_buf, "quit", 4) == 0) break;
 
         // scrivo al server
-        if (writen(fd, out_buf, BUFSIZE) == -1) {
-            perror("write");
-            exit(errno);
+        if (writen(fd, out_buf, BUFSIZE) == -1) { // quando cade la connessione
+            break;
         }
 
         // attendo la risposta del server
         n_read = readn(fd, out_buf, BUFSIZE);
         if (n_read == 0) { // chiusa connessione
             fprintf(stderr, "%s", ERROR_READ_WRITE);
-            exit(0);
+            break;
         } 
         if (n_read == -1) {
             perror("read");
