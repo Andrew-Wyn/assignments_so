@@ -48,10 +48,16 @@ int main() {
             break;
         }
 
-        if (out_buf[strlen(out_buf)-1] == '\n') // controllo se sto leggendo da un buffer che supera BUFSIZE nel caso non è necessario eliminare la new line
+        // controllo se sto leggendo da un buffer che supera BUFSIZE-1 (ultimo valore null) nel caso non è necessario eliminare la new line
+        // ma se la lunghezza di quello che sto leggendo dal buffer piu la new line è uguale a BUFSIZE-1 devo togliere comunque newline
+        if (n_read < BUFSIZE-1) {
             out_buf[strlen(out_buf)-1] = '\0';
+        }
+        else {
+            if (out_buf[BUFSIZE-2] == '\n')
+                out_buf[BUFSIZE-2] = '\0';
+        }
 
-        printf("readed -> %s\n", out_buf);
 
         // se leggo quit esco
         if (strncmp(out_buf, "quit", 4) == 0) break;

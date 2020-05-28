@@ -18,7 +18,6 @@ int process_string(char* in, char* out, int n) {
         }
     }
 
-    //out[n] = '\0';
     return 1; // true tutto ok
 }
 
@@ -58,11 +57,11 @@ void* server_sub_routine(void* _fd) {
     int n = 0;
 
     while ((n = readn(fd, in_buf, BUFSIZE)) > 0) { // quando legge 0 significa che il client ha chiuso la connessione
-        // process string 
-        char out_buf[strlen(in_buf)+1]; // + 1 per il NULL char
-        memset(out_buf, '\0', strlen(in_buf)+1);
+        // process string  
+        char out_buf[BUFSIZE]; 
+        memset(out_buf, '\0', BUFSIZE);
         if (!process_string(in_buf, out_buf, strlen(in_buf))) { // effettua la procedura per modificare la stringa
-            memset(out_buf, '\0', strlen(in_buf)+1);
+            memset(out_buf, '\0', BUFSIZE);
             strncpy(out_buf, "errore", 7);
         }
         if (writen(fd, out_buf, BUFSIZE) == -1) { // se ci sono errori sulla write termino il thread
